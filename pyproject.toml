@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "basic-transformer"
+version = "0.1.0"
+description = ""
+authors = ["futuran <takuya.kudryavka@gmail.com>"]
+readme = "README.md"
+packages = [{include = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+torch = {path = "/mnt/work/envs/torch-1.12.1+cu113-cp310-cp310-linux_x86_64.whl"}
+hydra-core = "^1.2.0"
+numpy = "^1.23.3"
+transformers = "^4.22.2"
+datasets = "^2.5.1"
+sentencepiece = "^0.1.97"
+setuptools = "^65.4.1"
+protobuf = "3.20"
+evaluate = "^0.2.2"
+sacrebleu = "^2.2.1"
+flake8 = "^5.0.4"
+autopep8 = "^1.7.0"
+torchtext = "^0.13.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

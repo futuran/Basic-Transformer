@@ -1,0 +1,10 @@
+defaults:
+- dataset: baseline
+- model: base
+- vocab: base
+
+checkpoint: baseline/trained_model
+load_checkpoint: baseline/trained_model/model_30.pt
+log_dir: baseline/
+out_txt: baseline/out.txt
+out_lqmt: baseline/out.lqmt
