@@ -1,0 +1,9 @@
+train: 
+  src: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec/aspec_dev.en.tkn.bpe
+  tgt: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec/aspec_dev.ja.tkn.bpe
+dev: 
+  src: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec/aspec_dev.en.tkn.bpe
+  tgt: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec/aspec_dev.ja.tkn.bpe
+test: 
+  src: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec/aspec_test.en.tkn.bpe
+  tgt: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec/aspec_test.ja.tkn.bpe

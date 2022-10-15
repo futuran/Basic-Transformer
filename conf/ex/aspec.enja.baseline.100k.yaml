@@ -3,6 +3,7 @@ defaults:
 - model: base
 - vocab: aspec.enja.base
 
+project_name: aspec.enja.baseline.100k
 checkpoint: aspec.enja.baseline.100k/trained_model
 load_checkpoint: aspec.enja.baseline.100k/trained_model/model_30.pt
 log_dir: aspec.enja.baseline.100k/

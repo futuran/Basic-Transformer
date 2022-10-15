@@ -1,3 +1,4 @@
+from distutils.command.config import config
 import os, sys
 import random 
 from pathlib import Path
@@ -8,6 +9,8 @@ import math
 import numpy as np
 import csv
 from tqdm import tqdm
+import wandb
+wandb.login()
 
 from src.basic_transformer.collation_mask import *
 from src.basic_transformer.optimizer import *
@@ -110,11 +113,18 @@ def translate(collation_mask: CollationAndMask, vocab: Vocab, model: torch.nn.Mo
 @hydra.main(version_base=None, config_path="../../conf",config_name="config")
 def main(cfg: DictConfig):
 
-    os.environ["WANDB_DISABLED"] = "true"
+    # os.environ["WANDB_DISABLED"] = "true"
     cwd: Final[Path] = Path(hydra.utils.get_original_cwd())
     Path.mkdir(cwd / Path(cfg.ex.checkpoint), exist_ok=True, parents=True)
     logger.info('\n' + OmegaConf.to_yaml(cfg))
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    logger.info('project name of wandb: ' + cfg.ex.project_name)
+    wandb.config = OmegaConf.to_container(
+        cfg, resolve=True, throw_on_missing=True
+    )
+    run = wandb.init(project=cfg.ex.project_name)
+
 
     # Building Vocabulary
     vocab = Vocab()
@@ -187,6 +197,8 @@ def main(cfg: DictConfig):
 
         ######################################################################
         # Now we have all the ingredients to train our model. Let's do it!
+        wandb.watch(model, loss_fn, log="all", log_freq=10)
+
         for epoch in range(1, cfg.ex.model.num_epochs + 1):
             start_time = timer()
             train_loss = train_epoch(
@@ -196,6 +208,11 @@ def main(cfg: DictConfig):
             torch.save(model.state_dict(),
                        Path( cwd / '{}/model_{}.pt'.format(cfg.ex.checkpoint, epoch)))
             logger.info(f"Epoch: {epoch}, Train loss: {train_loss:.3f}, Train ppl: {math.exp(train_loss):.3f}, Val loss: {val_loss:.3f}, Val ppl: {math.exp(val_loss):.3f}, "f"Epoch time = {(end_time - start_time):.3f}s")
+            wandb.log({
+                'Train loss': train_loss,
+                'Train ppl': math.exp(train_loss),
+                'Val loss': val_loss,
+                'Val ppl': math.exp(val_loss)})
 
     # Predict
     if cfg.do_predict:

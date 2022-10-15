@@ -129,6 +129,8 @@ dmypy.json
 .pyre/
 
 
+wandb/
+
 # data
 outputs/
 baseline/
@@ -137,3 +139,6 @@ labse.nfr.srctgt/
 vocab/
 
 nohup.out
+
+# Outputs
+aspec*
