@@ -132,6 +132,8 @@ dmypy.json
 # data
 outputs/
 baseline/
+_baseline/
+labse.nfr.srctgt/
 vocab/
 
 nohup.out

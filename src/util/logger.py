@@ -27,7 +27,7 @@ def setup_logger(name: str, fh_output_dir: str = "./", fh_output_name: str = "")
     if logger.hasHandlers():
         return logger
     logger.setLevel(DEBUG)
-    format = Formatter('[%(asctime)s %(levelname)s %(name)s %(filename)s:%(lineno)d def:%(funcName)s]\n%(message)s\n')
+    format = Formatter('[%(asctime)s %(levelname)s %(name)s %(filename)s:%(lineno)d def:%(funcName)s] %(message)s')
     # コンソールへの出力
     sh = StreamHandler()
     sh.setLevel(INFO)

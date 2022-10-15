@@ -1,0 +1,10 @@
+defaults:
+- dataset: aspec.enja.baseline.100k
+- model: base
+- vocab: aspec.enja.base
+
+checkpoint: aspec.enja.baseline.100k/trained_model
+load_checkpoint: aspec.enja.baseline.100k/trained_model/model_30.pt
+log_dir: aspec.enja.baseline.100k/
+out_txt: aspec.enja.baseline.100k/out.txt
+out_lqmt: aspec.enja.baseline.100k/out.lqmt

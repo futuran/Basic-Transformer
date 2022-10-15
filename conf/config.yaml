@@ -1,6 +1,6 @@
 defaults:
     - _self_
-    - ex: baseline
+    - ex: aspec.enja.baseline.100k
 
 do_train: True
 do_eval: True

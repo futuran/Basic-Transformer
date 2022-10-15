@@ -1,4 +1,3 @@
-from importlib import import_module
 import os, sys
 import random 
 from pathlib import Path
@@ -7,12 +6,14 @@ from timeit import default_timer as timer
 
 import math
 import numpy as np
+import csv
+from tqdm import tqdm
 
 from src.basic_transformer.collation_mask import *
 from src.basic_transformer.optimizer import *
 from src.basic_transformer.vocabs import *
 from src.basic_transformer.load_data import *
-from src.basic_transformer.transformr import *
+from src.basic_transformer.transformer import *
 from src.basic_transformer.decode import *
 
 # log関連
@@ -37,7 +38,7 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
     train_dataloader = DataLoader(
         train_data, batch_size=cfg.ex.model.batch_size, shuffle=True, collate_fn=collation_mask.collate_fn)
 
-    for src, tgt in train_dataloader:
+    for src, tgt in tqdm(train_dataloader):
         # print(" ".join(vocab_transform['src'].lookup_tokens(src.transpose(1,0)[0].numpy())).replace("<pad>", ""))
         # print(" ".join(vocab_transform['tgt'].lookup_tokens(tgt.transpose(1,0)[0].numpy())).replace("<pad>", ""))
 
@@ -111,8 +112,8 @@ def main(cfg: DictConfig):
 
     os.environ["WANDB_DISABLED"] = "true"
     cwd: Final[Path] = Path(hydra.utils.get_original_cwd())
-    Path.mkdir(cwd / Path(cfg.ex.checkpoint), exist_ok=True)
-    logger.debug(OmegaConf.to_yaml(cfg))
+    Path.mkdir(cwd / Path(cfg.ex.checkpoint), exist_ok=True, parents=True)
+    logger.info('\n' + OmegaConf.to_yaml(cfg))
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Building Vocabulary
@@ -120,6 +121,7 @@ def main(cfg: DictConfig):
     collation_mask = CollationAndMask(vocab)
     if os.path.isfile(cfg.ex.vocab.save) == True:
         logger.info('load exsiting vocab file...')
+        logger.info(cfg.ex.vocab.save)
         vocab.vocab_transform = torch.load(cfg.ex.vocab.save)
     else:
         vocab_data = load_vocab_data(cfg, logger)
@@ -167,7 +169,7 @@ def main(cfg: DictConfig):
                                    tgt_vocab_size=len(
                                        vocab.vocab_transform['tgt']),
                                    dim_feedforward=cfg.ex.model.ffn_hid_dim)
-        logger.debug(model)
+        logger.info('\n' + str(model))
 
         for p in model.parameters():
             if p.dim() > 1:
@@ -225,7 +227,6 @@ def main(cfg: DictConfig):
         with open(cfg.ex.out_txt, 'w') as f:
             f.writelines(out_list)
 
-        import csv
         with open(cfg.ex.out_lqmt + '.csv', 'w') as f:
             writer = csv.writer(f)
             writer.writerows(out_lqmt_list)
