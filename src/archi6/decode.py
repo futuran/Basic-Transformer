@@ -7,8 +7,8 @@ def greedy_decode(collation_mask, vocab, model, src, src_mask, src_length_mask, 
     src_mask = src_mask.to(device)
 
     memory = model.encode(src, src_mask)
-    # src_length_mask = src_length_mask.unsqueeze(dim=2).expand(-1,-1, memory.shape[2]).to(device)
-    # memory = torch.mul(memory,src_length_mask)
+    src_length_mask = src_length_mask.unsqueeze(dim=2).expand(-1,-1, memory.shape[2]).to(device)
+    memory = torch.mul(memory,src_length_mask)
 
     ys = torch.ones(1, 1).fill_(start_symbol).type(torch.long).to(device)
 

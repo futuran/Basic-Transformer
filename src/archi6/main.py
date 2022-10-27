@@ -12,12 +12,12 @@ from tqdm import tqdm
 import wandb
 wandb.login()
 
-from src.archi5.collation_mask import *
-from src.archi5.optimizer import *
-from src.archi5.vocabs import *
-from src.archi5.load_data import *
-from src.archi5.transformer import *
-from src.archi5.decode import *
+from src.archi6.collation_mask import *
+from src.archi6.optimizer import *
+from src.archi6.vocabs import *
+from src.archi6.load_data import *
+from src.archi6.transformer import *
+from src.archi6.decode import *
 
 # log関連
 from src.util.logger import *
@@ -71,19 +71,19 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
         # src+ref→src+sim1→src+sim2の順序で来ることを前提としている
         # loss_fn_for_sim = nn.KLDivLoss(reduction="batchmean")
         # TODO encoder_outsはmaskしただけなので0埋めされているので、src文長で切り出すべき
-        loss_for_sim = torch.tensor(0, dtype=torch.float32).to(device)
-        for i in range(len(src_type_label)):
-            if src_type_label[i] == 0:
-                # ref_dist = F.log_softmax(torch.squeeze(encoder_outs[:,i,:]),dim=1)
-                # ref_dist = torch.squeeze(encoder_outs[:,i,:])
-                ref_dist = encoder_outs[:,i,:]
-            else:
-                # current_dist = F.log_softmax(torch.squeeze(encoder_outs[:,i,:]),dim=1)
-                # current_dist = torch.squeeze(encoder_outs[:,i,:])
-                current_dist = encoder_outs[:,i,:]
-                loss_for_sim += loss_fn_for_sim(current_dist, ref_dist)
-        new_loss = loss + cfg.ex.sim_loss_alpha * loss_for_sim
-        # new_loss = loss 
+        # loss_for_sim = torch.tensor(0, dtype=torch.float32).to(device)
+        # for i in range(len(src_type_label)):
+        #     if src_type_label[i] == 0:
+        #         # ref_dist = F.log_softmax(torch.squeeze(encoder_outs[:,i,:]),dim=1)
+        #         # ref_dist = torch.squeeze(encoder_outs[:,i,:])
+        #         ref_dist = encoder_outs[:,i,:]
+        #     else:
+        #         # current_dist = F.log_softmax(torch.squeeze(encoder_outs[:,i,:]),dim=1)
+        #         # current_dist = torch.squeeze(encoder_outs[:,i,:])
+        #         current_dist = encoder_outs[:,i,:]
+        #         loss_for_sim += loss_fn_for_sim(current_dist, ref_dist)
+        # new_loss = loss + cfg.ex.sim_loss_alpha * loss_for_sim
+        new_loss = loss 
         # print(new_loss)
 
         new_loss.backward()
@@ -93,9 +93,7 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
         losses += new_loss.item()
 
         wandb.log({
-                'Train Orig loss': loss,
-                'Train Sim loss': loss_for_sim,
-                'Train Sumed loss': new_loss})
+                'Train loss': loss})
 
     return losses / len(train_dataloader)
 
@@ -127,14 +125,15 @@ def evaluate(collation_mask: CollationAndMask, dev_data, model, loss_fn, loss_fn
         # src+simのEncoderの出力をsrc+refの出力に近づける
         # src+ref→src+sim1→src+sim2の順序で来ることを前提としている
         # loss_fn_for_sim = nn.KLDivLoss(reduction="batchmean")
-        loss_for_sim = 0
-        for i in range(len(src_type_label)):
-            if src_type_label[i] == 0:
-                ref_dist = torch.squeeze(encoder_outs[:,i,:])
-            else:
-                current_dist = torch.squeeze(encoder_outs[:,i,:])
-                loss_for_sim += loss_fn_for_sim(current_dist, ref_dist)
-        new_loss = loss + cfg.ex.sim_loss_alpha * loss_for_sim
+        # loss_for_sim = 0
+        # for i in range(len(src_type_label)):
+        #     if src_type_label[i] == 0:
+        #         ref_dist = torch.squeeze(encoder_outs[:,i,:])
+        #     else:
+        #         current_dist = torch.squeeze(encoder_outs[:,i,:])
+        #         loss_for_sim += loss_fn_for_sim(current_dist, ref_dist)
+        # new_loss = loss + cfg.ex.sim_loss_alpha * loss_for_sim
+        new_loss = loss
 
         losses += new_loss.item()
 
