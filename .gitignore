@@ -133,13 +133,10 @@ wandb/
 
 # data
 outputs/
-baseline/
-_baseline/
 labse.nfr.srctgt/
-vocab/
 old/
 
 nohup.out
 
 # Outputs
-aspec*
+aspec*/

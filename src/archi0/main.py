@@ -12,12 +12,12 @@ from tqdm import tqdm
 import wandb
 wandb.login()
 
-from src.basic_transformer.collation_mask import *
-from src.basic_transformer.optimizer import *
-from src.basic_transformer.vocabs import *
-from src.basic_transformer.load_data import *
-from src.basic_transformer.transformer import *
-from src.basic_transformer.decode import *
+from src.archi0.collation_mask import *
+from src.archi0.optimizer import *
+from src.archi0.vocabs import *
+from src.archi0.load_data import *
+from src.archi0.transformer import *
+from src.archi0.decode import *
 
 # log関連
 from src.util.logger import *

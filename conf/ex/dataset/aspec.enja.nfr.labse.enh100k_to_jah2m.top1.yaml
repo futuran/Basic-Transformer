@@ -1,0 +1,9 @@
+train: 
+  src: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/merge_enh1m_to_jah2m.top1/aspec_train_h100k.en.tkn.bpe
+  tgt: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/merge_enh1m_to_jah2m.top1/aspec_train_h100k.ja.tkn.bpe
+dev: 
+  src: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/merge_enh1m_to_jah2m.top1/aspec_dev.en.tkn.bpe
+  tgt: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/merge_enh1m_to_jah2m.top1/aspec_dev.ja.tkn.bpe
+test: 
+  src: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/merge_enh1m_to_jah2m.top1/aspec_test.en.tkn.bpe
+  tgt: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/merge_enh1m_to_jah2m.top1/aspec_test.ja.tkn.bpe
