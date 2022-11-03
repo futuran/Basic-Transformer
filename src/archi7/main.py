@@ -76,7 +76,14 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
 
             else:
                 current_dist = encoder_outs[:,i,:]  # 97*512
-                wight_for_each_sent_loss[i] = cos(ref_dist.reshape(-1), current_dist.reshape(-1))
+                wight_for_each_sent_loss[i] = cos(ref_dist.reshape(-1), current_dist.reshape(-1)).detach()
+
+        # Cosを比に変える
+        # cos_ref + cos_sim1 + cos_sim2 ,,, = len(num_sim)
+        num_sim = int(len(src_type_label) / cfg.ex.model.batch_size)
+        tmp = torch.sum(wight_for_each_sent_loss)
+        ratio_wight_for_each_sent_loss = wight_for_each_sent_loss * len(src_type_label) / tmp
+
 
         # 通常のloss
         loss_orig = loss_fn(
@@ -90,19 +97,18 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
         # loss /= len(src_type_label)
 
         # 各類似文ごとに計算して足す
-        num_sim = int(len(src_type_label) / cfg.ex.model.batch_size)
         loss = torch.tensor(0, dtype=torch.float32).to(device)
-        # for k in range(num_sim):
-        #     one_logits = logits[:,k::num_sim,:]
-        #     one_tgt_out = tgt_out[:,k::num_sim]
-        #     loss += loss_fn(one_logits.reshape(-1, one_logits.shape[-1]), one_tgt_out.reshape(-1)) * torch.mean(wight_for_each_sent_loss[k::num_sim])
-        # loss /= num_sim
+        for k in range(num_sim):
+            one_logits = logits[:,k::num_sim,:]
+            one_tgt_out = tgt_out[:,k::num_sim]
+            loss += loss_fn(one_logits.reshape(-1, one_logits.shape[-1]), one_tgt_out.reshape(-1)) * torch.mean(ratio_wight_for_each_sent_loss[k::num_sim]) * 0.9 ** k
+        loss /= num_sim
 
 
-        loss_orig.backward()        # orig!!!!!!
+        loss.backward()        # orig!!!!!!
 
         optimizer.step()
-        losses += loss_orig.item()  # orig!!!!!!
+        losses += loss.item()  # orig!!!!!!
 
         wandb.log({
                 'Train Orig loss': loss_orig,
