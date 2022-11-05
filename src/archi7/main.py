@@ -69,6 +69,7 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
         # TODO encoder_outsはmaskしただけなので0埋めされているので、src文長で切り出すべき
         wight_for_each_sent_loss = torch.ones(len(src_type_label), dtype=torch.float32).to(device)
         cos = nn.CosineSimilarity(dim=0)
+        pdist = nn.PairwiseDistance(p=2)
         for i in range(len(src_type_label)):
             if src_type_label[i] == 0:
                 ref_dist = encoder_outs[:,i,:]  # 97*512
@@ -78,45 +79,41 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
                 current_dist = encoder_outs[:,i,:]  # 97*512
                 wight_for_each_sent_loss[i] = cos(ref_dist.reshape(-1), current_dist.reshape(-1)).detach()
 
-        # Cosを比に変える
-        # cos_ref + cos_sim1 + cos_sim2 ,,, = len(num_sim)
         num_sim = int(len(src_type_label) / cfg.ex.model.batch_size)
-        tmp = torch.sum(wight_for_each_sent_loss)
-        ratio_wight_for_each_sent_loss = wight_for_each_sent_loss * len(src_type_label) / tmp
-
+        
+        softmax = nn.LogSoftmax(dim=0)
+        new_wight_for_each_sent_loss = -softmax(wight_for_each_sent_loss)
 
         # 通常のloss
         loss_orig = loss_fn(
             logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
-
-        # Cos類似度を重み付けしたloss（遅い！）
-        # for i in range(len(src_type_label)):
-        #     one_logits = logits[:,i,:]
-        #     one_tgt_out = tgt_out[:,i]
-        #     loss += loss_fn(one_logits.reshape(-1, one_logits.shape[-1]), one_tgt_out.reshape(-1)) # * wight_for_each_sent_loss[i]
-        # loss /= len(src_type_label)
 
         # 各類似文ごとに計算して足す
         loss = torch.tensor(0, dtype=torch.float32).to(device)
         for k in range(num_sim):
             one_logits = logits[:,k::num_sim,:]
             one_tgt_out = tgt_out[:,k::num_sim]
-            loss += loss_fn(one_logits.reshape(-1, one_logits.shape[-1]), one_tgt_out.reshape(-1)) * torch.mean(ratio_wight_for_each_sent_loss[k::num_sim]) * 0.9 ** k
+            # loss += loss_fn(one_logits.reshape(-1, one_logits.shape[-1]), one_tgt_out.reshape(-1)) * torch.mean(wight_for_each_sent_loss[k::num_sim])
+            loss += loss_fn(one_logits.reshape(-1, one_logits.shape[-1]), one_tgt_out.reshape(-1)) * 0.5 ** (k/2)
+
         loss /= num_sim
 
-
-        loss.backward()        # orig!!!!!!
-
+        loss.backward()
         optimizer.step()
-        losses += loss.item()  # orig!!!!!!
+        losses += loss.item()
 
         wandb.log({
-                'Train Orig loss': loss_orig,
-                'Train Cosw loss': loss,
-                'Cos of Ref and Sim-1': torch.mean(wight_for_each_sent_loss[1::num_sim]),
-                'Cos of Ref and Sim-2': torch.mean(wight_for_each_sent_loss[2::num_sim]),
-                'Cos of Ref and Sim-K': torch.mean(wight_for_each_sent_loss[num_sim-1::num_sim]),
+                'Orig Train loss': loss_orig,
+                'New Train loss': loss,
                 })
+
+        # wandb.log({
+        #         'Train Orig loss': loss_orig,
+        #         'Train Cosw loss': loss,
+        #         'Cos of Ref and Sim-1': torch.mean(wight_for_each_sent_loss[1::num_sim]),
+        #         'Cos of Ref and Sim-2': torch.mean(wight_for_each_sent_loss[2::num_sim]),
+        #         'Cos of Ref and Sim-K': torch.mean(wight_for_each_sent_loss[num_sim-1::num_sim]),
+        #         })
 
     return losses / len(train_dataloader)
 
