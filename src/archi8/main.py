@@ -131,7 +131,7 @@ def evaluate(collation_mask: CollationAndMask, dev_data, model, loss_fn, loss_fn
     dev_dataloader = DataLoader(
         dev_data, batch_size=cfg.ex.model.batch_size, shuffle=True, collate_fn=collation_mask.collate_fn)
 
-    for src, tgt, src_type_label, src_length_mask in dev_dataloader:
+    for src, tgt, src_type_label, src_length_mask, matches in dev_dataloader:
         src = src.to(device)
         tgt = tgt.to(device)
         src_length_mask = src_length_mask.to(device)
