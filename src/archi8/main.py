@@ -90,7 +90,7 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
         loss_orig = loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
 
         # 自作loss
-        loss_sentweight = loss_sentweight_fn(logits, tgt_out, matches)
+        # loss_sentweight = loss_sentweight_fn(logits, tgt_out, matches)
 
         # 各類似文ごとに計算して足すloss
         # loss_sim = torch.tensor(0, dtype=torch.float32).to(device)
@@ -101,7 +101,8 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
         #     # loss_sim += loss_fn(one_logits.reshape(-1, one_logits.shape[-1]), one_tgt_out.reshape(-1)) * 0.5 ** (k/2)
         # loss_sim /= num_sim
 
-        loss = loss_sentweight
+        loss = loss_orig
+        # loss = loss_sentweight
 
         loss.backward()
         optimizer.step()

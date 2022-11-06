@@ -32,5 +32,5 @@ class SentWeightedCrossEntropyLoss(CrossEntropyLoss):
             loss += F.cross_entropy(input[:,i,:], target[:,i], weight=self.weight,
                                ignore_index=self.ignore_index, reduction=self.reduction,
                                label_smoothing=self.label_smoothing) * batch_weight[i]
-        return loss
+        return loss / batch_size
 
