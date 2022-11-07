@@ -86,23 +86,11 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
         softmax = nn.LogSoftmax(dim=0)
         new_wight_for_each_sent_loss = -softmax(wight_for_each_sent_loss)
 
-        # 通常のloss
+        # various losses
         loss_orig = loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
+        loss_sentweight = loss_sentweight_fn(logits, tgt_out, matches)
 
-        # 自作loss
-        # loss_sentweight = loss_sentweight_fn(logits, tgt_out, matches)
-
-        # 各類似文ごとに計算して足すloss
-        # loss_sim = torch.tensor(0, dtype=torch.float32).to(device)
-        # for k in range(num_sim):
-        #     one_logits = logits[:,k::num_sim,:]
-        #     one_tgt_out = tgt_out[:,k::num_sim]
-        #     loss_sim += loss_fn(one_logits.reshape(-1, one_logits.shape[-1]), one_tgt_out.reshape(-1)) * torch.mean(wight_for_each_sent_loss[k::num_sim])
-        #     # loss_sim += loss_fn(one_logits.reshape(-1, one_logits.shape[-1]), one_tgt_out.reshape(-1)) * 0.5 ** (k/2)
-        # loss_sim /= num_sim
-
-        loss = loss_orig
-        # loss = loss_sentweight
+        loss = loss_sentweight
 
         loss.backward()
         optimizer.step()
@@ -110,7 +98,7 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
 
         wandb.log({
                 'Orig Train loss': loss_orig,
-                'New Train loss': loss,
+                'New Train loss': loss_sentweight,
                 })
 
         # wandb.log({
@@ -272,8 +260,7 @@ def main(cfg: DictConfig):
 
         loss_fn = torch.nn.CrossEntropyLoss(ignore_index=vocab.PAD_IDX)
         loss_fn_for_sim = nn.KLDivLoss(reduction="batchmean", log_target=True)
-        loss_sentweight_fn = SentWeightedCrossEntropyLoss(ignore_index=vocab.PAD_IDX, device=device)
-        # loss_fn_for_sim = nn.CrossEntropyLoss()
+        loss_sentweight_fn = SentWeightedCrossEntropyLoss(ignore_index=vocab.PAD_IDX)
 
         # optimizer = torch.optim.AdamW(
         #     transformer.parameters(), lr=0.001, betas=(0.9, 0.98), eps=1e-9)

@@ -1,36 +1,47 @@
-from torch.nn.modules.loss import CrossEntropyLoss 
 import torch.nn.functional as F
 import torch
 from torch import nn
 from torch import Tensor
-from typing import Optional
 
-# class SentWeightedCrossEntropyLoss(CrossEntropyLoss):
-#     def __init__(self, weight: Optional[Tensor] = None, size_average=None, ignore_index: int = -100,
-#                  reduce=None, reduction: str = 'mean', label_smoothing: float = 0.0) -> None:
-#         super(SentWeightedCrossEntropyLoss, self).__init__(weight, size_average, reduce, reduction)
-#         self.ignore_index = ignore_index
-#         self.label_smoothing = label_smoothing
 
-#     def forward(self, input: Tensor, target: Tensor) -> Tensor:
-#         return F.cross_entropy(input, target, weight=self.weight,
-#                                ignore_index=self.ignore_index, reduction=self.reduction,
-#                                label_smoothing=self.label_smoothing)
-
-class SentWeightedCrossEntropyLoss(CrossEntropyLoss):
-    def __init__(self, weight: Optional[Tensor] = None, size_average=None, ignore_index: int = -100,
-                 reduce=None, reduction: str = 'mean', label_smoothing: float = 0.0, device='cpu') -> None:
-        super(SentWeightedCrossEntropyLoss, self).__init__(weight, size_average, reduce, reduction, device)
+class OrigCrossEntropyLoss(nn.Module):
+    def __init__(self, ignore_index: int = -100):
+        super(OrigCrossEntropyLoss, self).__init__()
         self.ignore_index = ignore_index
-        self.label_smoothing = label_smoothing
-        self.device = device
 
     def forward(self, input: Tensor, target: Tensor, batch_weight: Tensor) -> Tensor:
-        loss = torch.tensor(0, dtype=torch.float32).to(self.device)
-        batch_size = batch_weight.shape[-1]
-        for i in range(batch_size):
-            loss += F.cross_entropy(input[:,i,:], target[:,i], weight=self.weight,
-                               ignore_index=self.ignore_index, reduction=self.reduction,
-                               label_smoothing=self.label_smoothing) * batch_weight[i]
-        return loss / batch_size
+        L = input.shape[0]  # 51
+        N = input.shape[1]  # 160
+        C = input.shape[2]  # 37982
 
+        input = F.log_softmax(input, dim=2)
+        ignore_matrix = target != self.ignore_index
+        target = F.one_hot(target, num_classes=C)
+        loss_matrix = torch.sum(input*target, dim=2)
+
+        loss_matrix *= ignore_matrix
+
+        loss = torch.sum(loss_matrix)
+
+        return - loss / torch.sum(ignore_matrix)
+
+
+class SentWeightedCrossEntropyLoss(nn.Module):
+    def __init__(self, ignore_index: int = -100):
+        super(SentWeightedCrossEntropyLoss, self).__init__()
+        self.ignore_index = ignore_index
+
+    def forward(self, input: Tensor, target: Tensor, batch_weight: Tensor) -> Tensor:
+        L = input.shape[0]  # 51
+        N = input.shape[1]  # 160
+        C = input.shape[2]  # 37982
+
+        input = F.log_softmax(input, dim=2)
+        ignore_matrix = target != self.ignore_index
+        target = F.one_hot(target, num_classes=C)
+        loss_matrix = torch.sum(input*target, dim=2)
+
+        loss_matrix *= ignore_matrix
+        loss = torch.sum(torch.mv(loss_matrix, batch_weight))
+
+        return - loss / torch.sum(ignore_matrix)
