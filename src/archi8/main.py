@@ -1,4 +1,3 @@
-from distutils.command.config import config
 import os, sys
 import random 
 from pathlib import Path
