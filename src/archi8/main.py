@@ -83,7 +83,7 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
 
         
         softmax = nn.LogSoftmax(dim=0)
-        new_wight_for_each_sent_loss = -softmax(wight_for_each_sent_loss)
+        # matches = -softmax(matches/0.1)
 
         # various losses
         loss_orig = loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
