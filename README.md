@@ -9,3 +9,4 @@
 - *archi5: archi4から分岐。Encoderの出力文長をsrcの文長のみにする+KL div
 - archi6: maskはせず、lossもそのまま。refは追加。
 - archi7: archi5から派生。cos * cross_entropy (実装中)
+- archi8: archi7から派生。SentWightedLoss
