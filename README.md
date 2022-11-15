@@ -10,3 +10,5 @@
 - archi6: maskはせず、lossもそのまま。refは追加。
 - archi7: archi5から派生。cos * cross_entropy (実装中)
 - archi8: archi7から派生。SentWightedLoss
+- *archi9: archi8から派生。Load dataを改良
+- archi10: archi8から派生。Encoder出力をConcat
