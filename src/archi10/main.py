@@ -56,52 +56,40 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
 
         tgt_input = tgt[:-1, :]
 
-        src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = collation_mask.create_mask(
-            src, tgt_input, device)
+        src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = collation_mask.create_mask(src, tgt_input, device)
+
 
         # logits, encoder_outs = model(src, tgt_input, src_type_label, src_length_mask, src_mask, tgt_mask,
         #                src_padding_mask, tgt_padding_mask, src_padding_mask)
 
         memory = model.encode4train(src, src_mask, src_padding_mask, src_length_mask)
+        memory = torch.reshape(memory.transpose(0,1), (int(memory.shape[1]/num_sim) , -1, memory.shape[2])).transpose(0,1)
+        src_padding_mask_for_decode = torch.reshape(src_padding_mask, (int(src_padding_mask.shape[0]/num_sim) , -1))
+        # src_padding_mask_for_decode = src_padding_mask[0::num_sim,:]
 
-        tgt_out = model.decode4train(tgt, memory, tgt_mask, tgt_padding_mask, src_padding_mask)
+        logits = model.decode4train(tgt_input, memory, tgt_mask, tgt_padding_mask, src_padding_mask_for_decode)
 
         # optimizer.zero_grad() # for Original Adam
         optimizer.optimizer.zero_grad()  # for w/ Noam
 
         tgt_out = tgt[1:, :]
 
-        # src+simのEncoderの出力とsrc+refのCos類似度をCrossEntropyLossの各文に対する損失の重みとする。
-        # src+ref→src+sim1→src+sim2の順序で来ることを前提としている
-        # TODO encoder_outsはmaskしただけなので0埋めされているので、src文長で切り出すべき
-        cos = nn.CosineSimilarity(dim=0)
-        pdist = nn.PairwiseDistance(p=2)
-        wight_for_each_sent_loss = torch.ones(len(src_type_label), dtype=torch.float32).to(device)
-        for i in range(len(src_type_label)):
-            if src_type_label[i] == 0:
-                ref_dist = encoder_outs[:,i,:]  # 97*512
-                wight_for_each_sent_loss[i] = 1
-            else:
-                current_dist = encoder_outs[:,i,:]  # 97*512
-                wight_for_each_sent_loss[i] = cos(ref_dist.reshape(-1), current_dist.reshape(-1)).detach()
-
-        
         softmax = nn.LogSoftmax(dim=0)
         # matches = -softmax(matches/0.1)
+        
 
         # various losses
         loss_orig = loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
-        loss_sentweight = loss_sentweight_fn(logits, tgt_out, matches)
+        loss_sentweight = 0 #loss_sentweight_fn(logits, tgt_out, matches)
 
-        loss = loss_sentweight
+        loss = loss_orig
 
         loss.backward()
         optimizer.step()
         losses += loss.item()
 
         wandb.log({
-                'Orig Train loss': loss_orig,
-                'New Train loss': loss_sentweight,
+                'Train loss': loss_orig,
                 })
 
         # wandb.log({

@@ -36,6 +36,7 @@ class CollationAndMask:
         # function to collate data samples into batch tesors
         src_batch, tgt_batch = [], []
         src_length_mask_batch = []    # src文のみの文長（単語数・sep記号は含まず）
+        src_length_mask_batch_onlyref = []    # src文のみの文長（単語数・sep記号は含まず）
         src_type_label = []           # src+ref:0 , src+sim:1~
         match_batch = []
 
