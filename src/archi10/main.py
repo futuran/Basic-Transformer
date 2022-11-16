@@ -63,7 +63,7 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
         #                src_padding_mask, tgt_padding_mask, src_padding_mask)
 
         memory = model.encode4train(src, src_mask, src_padding_mask, src_length_mask)
-        memory = torch.reshape(memory.transpose(0,1), (int(memory.shape[1]/num_sim) , -1, memory.shape[2])).transpose(0,1)
+        memory = torch.reshape(memory.transpose(0,1), (int(memory.shape[1]/num_sim) , -1, memory.shape[2])).transpose(0,1).contiguous()
         src_padding_mask_for_decode = torch.reshape(src_padding_mask, (int(src_padding_mask.shape[0]/num_sim) , -1))
         # src_padding_mask_for_decode = src_padding_mask[0::num_sim,:]
 
@@ -75,8 +75,8 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
         tgt_out = tgt[1:, :]
 
         softmax = nn.LogSoftmax(dim=0)
-        # matches = -softmax(matches/0.1)
-        
+        matches = -softmax(matches/0.1)
+
 
         # various losses
         loss_orig = loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))

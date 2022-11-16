@@ -139,6 +139,7 @@ class Seq2SeqTransformer(nn.Module):
 
     def decode4train(self, tgt: Tensor, memory: Tensor, tgt_mask: Tensor, tgt_padding_mask: Tensor, memory_key_padding_mask: Tensor):
         tgt_emb = self.positional_encoding(self.src_tok_emb(tgt))
-        return self.transformer.decoder(tgt_emb, memory, tgt_mask=tgt_mask, memory_mask=None,
+        outs = self.transformer.decoder(tgt_emb, memory, tgt_mask=tgt_mask, memory_mask=None,
                                         tgt_key_padding_mask=tgt_padding_mask,
                                         memory_key_padding_mask=memory_key_padding_mask)
+        return self.generator(outs)
