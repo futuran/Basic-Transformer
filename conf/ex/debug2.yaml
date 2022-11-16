@@ -1,0 +1,12 @@
+defaults:
+- dataset: debug2
+- model: base
+- vocab: aspec.enja.base
+
+project_name: debug2
+checkpoint: debug2/trained_model
+load_checkpoint: debug2/trained_model/model_30.pt
+log_dir: debug2/
+out_txt: debug2/out.txt
+out_lqmt: debug2/out.lqmt
+num_sim: 2

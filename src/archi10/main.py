@@ -47,7 +47,7 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
         # print(" ".join(vocab_transform['src'].lookup_tokens(src.transpose(1,0)[0].numpy())).replace("<pad>", ""))
         # print(" ".join(vocab_transform['tgt'].lookup_tokens(tgt.transpose(1,0)[0].numpy())).replace("<pad>", ""))
 
-        num_sim = int(len(src_type_label) / cfg.ex.model.batch_size)
+        num_sim = int(cfg.ex.num_sim) + 1
 
         src = src.to(device)
         tgt = tgt.to(device)
@@ -64,8 +64,10 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
 
         memory = model.encode4train(src, src_mask, src_padding_mask, src_length_mask)
         memory = torch.reshape(memory.transpose(0,1), (int(memory.shape[1]/num_sim) , -1, memory.shape[2])).transpose(0,1).contiguous()
+
         src_padding_mask_for_decode = torch.reshape(src_padding_mask, (int(src_padding_mask.shape[0]/num_sim) , -1))
         # src_padding_mask_for_decode = src_padding_mask[0::num_sim,:]
+
 
         logits = model.decode4train(tgt_input, memory, tgt_mask, tgt_padding_mask, src_padding_mask_for_decode)
 
@@ -74,8 +76,8 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
 
         tgt_out = tgt[1:, :]
 
-        softmax = nn.LogSoftmax(dim=0)
-        matches = -softmax(matches/0.1)
+        # softmax = nn.LogSoftmax(dim=0)
+        # matches = -softmax(matches/0.1)
 
 
         # various losses
@@ -115,31 +117,24 @@ def evaluate(collation_mask: CollationAndMask, dev_data, model, loss_fn, loss_fn
         tgt = tgt.to(device)
         src_length_mask = src_length_mask.to(device)
 
+        num_sim = int(cfg.ex.num_sim) + 1
+
         tgt_input = tgt[:-1, :]
 
         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = collation_mask.create_mask(
             src, tgt_input, device)
 
-        logits, encoder_outs = model(src, tgt_input, src_type_label, src_length_mask, src_mask, tgt_mask,
-                       src_padding_mask, tgt_padding_mask, src_padding_mask)
+        memory = model.encode4train(src, src_mask, src_padding_mask, src_length_mask)
+        memory = torch.reshape(memory.transpose(0,1), (int(memory.shape[1]/num_sim) , -1, memory.shape[2])).transpose(0,1).contiguous()
+        src_padding_mask_for_decode = torch.reshape(src_padding_mask, (int(src_padding_mask.shape[0]/num_sim) , -1))
+
+        # src_padding_mask_for_decode = src_padding_mask[0::num_sim,:]
+
+        logits = model.decode4train(tgt_input, memory, tgt_mask, tgt_padding_mask, src_padding_mask_for_decode)
 
         tgt_out = tgt[1:, :]
-        loss = loss_fn(
-            logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
-
-        # src+simのEncoderの出力をsrc+refの出力に近づける
-        # src+ref→src+sim1→src+sim2の順序で来ることを前提としている
-        # loss_fn_for_sim = nn.KLDivLoss(reduction="batchmean")
-        # loss_for_sim = 0
-        # for i in range(len(src_type_label)):
-        #     if src_type_label[i] == 0:
-        #         ref_dist = torch.squeeze(encoder_outs[:,i,:])
-        #     else:
-        #         current_dist = torch.squeeze(encoder_outs[:,i,:])
-        #         loss_for_sim += loss_fn_for_sim(current_dist, ref_dist)
-        new_loss = loss
-
-        losses += new_loss.item()
+        loss = loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
+        losses += loss.item()
 
     return losses / len(dev_dataloader)
 

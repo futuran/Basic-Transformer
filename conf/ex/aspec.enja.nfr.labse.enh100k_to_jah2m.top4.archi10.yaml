@@ -9,3 +9,4 @@ load_checkpoint: aspec.enja.nfr.labse.enh100k_to_jah2m.top4.archi10/trained_mode
 log_dir: aspec.enja.nfr.labse.enh100k_to_jah2m.top4.archi10/
 out_txt: aspec.enja.nfr.labse.enh100k_to_jah2m.top4.archi10/out.txt
 out_lqmt: aspec.enja.nfr.labse.enh100k_to_jah2m.top4.archi10/out.lqmt
+num_sim: 4
