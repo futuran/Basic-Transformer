@@ -6,27 +6,19 @@ class TranslationDataset(Dataset):
         logger.info('loading dataset')
         logger.info('src: {}'.format(src_file))
         logger.info('tgt: {}'.format(tgt_file))
-        logger.info('max length: {}'.format(max_length))
+        logger.info('max length: {}'.format(max_length))    # src, tgt, simの各最大長を指定。
 
         self.src, self.tgt = [], []
-        eliminate_count = 0
 
         with open(src_file, 'r') as fs:
             with open(tgt_file, 'r') as ft:
-                if max_length == -1:
-                    for ls, lt in zip(fs, ft):
-                        self.src.append(ls.strip())
-                        self.tgt.append(lt.strip())
-                else:
-                    for ls, lt in zip(fs, ft):
-                        if len(ls.strip().split()) <= max_length and len(lt.strip().split()) <= max_length:
-                            self.src.append(ls.strip())
-                            self.tgt.append(lt.strip())
+                for ls, lt in zip(fs, ft):
+                    self.src.append(' '.join(ls.strip().split()[:max_length]))
+                    self.tgt.append(' '.join(lt.strip().split()[:max_length]))
 
         assert len(self.src) == len(self.tgt)
 
         logger.info('num of dataset: {}'.format(len(self.src)))
-        logger.info('eliminated sents: {}'.format(eliminate_count))
 
         self.src_transform = src_transform
         self.tgt_transform = tgt_transform

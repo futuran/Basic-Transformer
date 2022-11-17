@@ -1,4 +1,3 @@
-from distutils.command.config import config
 import os, sys
 import random 
 from pathlib import Path
@@ -12,12 +11,13 @@ from tqdm import tqdm
 import wandb
 wandb.login()
 
-from src.sim_transformer.collation_mask import *
-from src.sim_transformer.optimizer import *
-from src.sim_transformer.vocabs import *
-from src.sim_transformer.load_data import *
-from src.sim_transformer.transformer import *
-from src.sim_transformer.decode import *
+from src.archi1.collation_mask import *
+from src.archi1.optimizer import *
+from src.archi1.vocabs import *
+from src.archi1.load_data import *
+from src.archi1.transformer import *
+from src.archi1.decode import *
+from src.archi1.loss import *
 
 # log関連
 from src.util.logger import *
@@ -29,85 +29,141 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 
 import torch.nn as nn
+import torch.nn.functional as F
 import torch
 from torch.utils.data import DataLoader
 from torchtext.vocab import build_vocab_from_iterator
+# from torch.nn.utils.rnn import pad_sequence
 
 
-def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, loss_fn, cfg: DictConfig, device):
+def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, loss_fn, loss_fn_for_sim, loss_sentweight_fn, cfg: DictConfig, device):
 
     model.train()
     losses = 0
-    train_dataloader = DataLoader(
-        train_data, batch_size=cfg.ex.model.batch_size, shuffle=True, collate_fn=collation_mask.collate_fn)
+    train_dataloader = DataLoader(train_data, batch_size=cfg.ex.model.batch_size, shuffle=True, collate_fn=collation_mask.collate_fn)
 
-    for src, tgt in tqdm(train_dataloader):
+    for src, tgt, sim_ranks, src_length_mask, sim_scores in tqdm(train_dataloader):
+        # 目視確認用
         # print(" ".join(vocab_transform['src'].lookup_tokens(src.transpose(1,0)[0].numpy())).replace("<pad>", ""))
         # print(" ".join(vocab_transform['tgt'].lookup_tokens(tgt.transpose(1,0)[0].numpy())).replace("<pad>", ""))
 
+        num_sim = int(cfg.ex.num_sim) + 1
+
+        # テンソルをcpuからgpuに移す
         src = src.to(device)
         tgt = tgt.to(device)
+        src_length_mask = src_length_mask.to(device)
+        sim_scores = sim_scores.to(device)
 
         tgt_input = tgt[:-1, :]
 
-        src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = collation_mask.create_mask(
-            src, tgt_input, device)
+        src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = collation_mask.create_mask(src, tgt_input, device)
 
-        logits = model(src, tgt_input, src_mask, tgt_mask,
-                       src_padding_mask, tgt_padding_mask, src_padding_mask)
+        # logits, encoder_outs = model(src, tgt_input, sim_ranks, src_length_mask, src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+
+        # ENCODING
+        memory = model.encode_with_mask(src, src_mask, src_padding_mask, src_length_mask)
+
+        # DECODING
+        logits = model.decode_for_training(tgt_input, memory, tgt_mask, tgt_padding_mask, src_padding_mask)
 
         # optimizer.zero_grad() # for Original Adam
         optimizer.optimizer.zero_grad()  # for w/ Noam
 
         tgt_out = tgt[1:, :]
-        loss = loss_fn(
-            logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
-        loss.backward()
 
+        loss = loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
+
+        loss.backward()
         optimizer.step()
-        # print(optimizer)
         losses += loss.item()
+
+        wandb.log({
+                'Train loss in Batch': loss,
+                # 'Cos of Ref and Sim-1': torch.mean(wight_for_each_sent_loss[1::num_sim]),
+                # 'Cos of Ref and Sim-2': torch.mean(wight_for_each_sent_loss[2::num_sim]),
+                # 'Cos of Ref and Sim-K': torch.mean(wight_for_each_sent_loss[num_sim-1::num_sim]),
+                })
 
     return losses / len(train_dataloader)
 
 
-def evaluate(collation_mask: CollationAndMask, dev_data, model, loss_fn, cfg: DictConfig, device):
+def evaluate(collation_mask: CollationAndMask, dev_data, model, loss_fn, loss_fn_for_sim, loss_sentweight_fn, cfg: DictConfig, device):
+    
     model.eval()
     losses = 0
+    dev_dataloader = DataLoader(dev_data, batch_size=cfg.ex.model.batch_size, shuffle=True, collate_fn=collation_mask.collate_fn)
 
-    dev_dataloader = DataLoader(
-        dev_data, batch_size=cfg.ex.model.batch_size, shuffle=True, collate_fn=collation_mask.collate_fn)
-
-    for src, tgt in dev_dataloader:
+    for src, tgt, sim_ranks, src_length_mask, sim_scores in dev_dataloader:
         src = src.to(device)
         tgt = tgt.to(device)
+        src_length_mask = src_length_mask.to(device)
+
+        num_sim = int(cfg.ex.num_sim) + 1
 
         tgt_input = tgt[:-1, :]
 
-        src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = collation_mask.create_mask(
-            src, tgt_input, device)
+        src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = collation_mask.create_mask(src, tgt_input, device)
 
-        logits = model(src, tgt_input, src_mask, tgt_mask,
-                       src_padding_mask, tgt_padding_mask, src_padding_mask)
+        memory = model.encode_with_mask(src, src_mask, src_padding_mask, src_length_mask)
+
+        logits = model.decode_for_training(tgt_input, memory, tgt_mask, tgt_padding_mask, src_padding_mask)
 
         tgt_out = tgt[1:, :]
-        loss = loss_fn(
-            logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
+        loss = loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
         losses += loss.item()
 
     return losses / len(dev_dataloader)
 
 
-def translate(collation_mask: CollationAndMask, vocab: Vocab, model: torch.nn.Module, src_sentence: str, device):
-    # actual function to translate input sentence into target language
+def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Module, vocab: Vocab, cfg: DictConfig, device):
+
+    out_txt_list = []
+    out_qmt_list = []
+    
     model.eval()
-    src = vocab.text_transform['src'](src_sentence.split()).view(-1, 1)
-    num_tokens = src.shape[0]
-    src_mask = (torch.zeros(num_tokens, num_tokens)).type(torch.bool)
-    tgt_tokens, q_mts = greedy_decode(
-        collation_mask, vocab, model,  src, src_mask, max_len=128, start_symbol=vocab.BOS_IDX, device=device)
-    tgt_tokens = tgt_tokens.flatten()
-    return " ".join(vocab.vocab_transform['tgt'].lookup_tokens(list(tgt_tokens.cpu().numpy()))).replace("<bos>", "").replace("<eos>", ""), q_mts
+    collation_mask.is_prediction = True # prediction時にrefを入れないように。
+    test_dataloader = DataLoader(test_data, batch_size=1, shuffle=False, collate_fn=collation_mask.collate_fn)
+    
+    for i, (src, tgt, sim_ranks, src_length_mask, sim_scores) in enumerate(test_dataloader):
+        # 目視確認用
+        print(f'{i=}')
+        print(" ".join(vocab.vocab_transform['src'].lookup_tokens(src.transpose(1,0)[0].numpy())).replace("<pad>", ""))
+        # print(" ".join(vocab.vocab_transform['tgt'].lookup_tokens(tgt.transpose(1,0)[0].numpy())).replace("<pad>", ""))
+        
+        num_sim = int(cfg.ex.num_sim) + 1
+
+        # テンソルをcpuからgpuに移す
+        src = src.to(device)
+        tgt = tgt.to(device)
+        src_length_mask = src_length_mask.to(device)
+        sim_scores = sim_scores.to(device)
+
+        tgt_input = tgt[:-1, :]
+
+        src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = collation_mask.create_mask(src, tgt_input, device)
+
+        # ENCODING
+        memory = model.encode4train(src, src_mask, src_padding_mask, src_length_mask)
+        # TODO: memoryは全ての類似文の事例を含むので、そのうち一文を切り出す作業が必要
+
+        # GREEDY DECODING
+        tgt_tokens, q_mts = greedy_decode(
+            collation_mask, 
+            vocab, 
+            model,
+            src,
+            memory,
+            max_len=128, 
+            start_symbol=vocab.BOS_IDX, device=device)
+        tgt_tokens = tgt_tokens.flatten()
+
+        out = " ".join(vocab.vocab_transform['tgt'].lookup_tokens(list(tgt_tokens.cpu().numpy()))).replace("<bos>", "").replace("<eos>", "")
+        print(out)
+        out_txt_list.append(out + '\n')
+        out_qmt_list.append(q_mts)
+
+    return out_txt_list, out_qmt_list
 
 
 @hydra.main(version_base=None, config_path="../../conf",config_name="config")
@@ -120,9 +176,7 @@ def main(cfg: DictConfig):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     logger.info('project name of wandb: ' + cfg.ex.project_name)
-    wandb.config = OmegaConf.to_container(
-        cfg, resolve=True, throw_on_missing=True
-    )
+    wandb.config = OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
     run = wandb.init(project=cfg.ex.project_name)
 
 
@@ -166,48 +220,41 @@ def main(cfg: DictConfig):
     # src and tgt language text transforms to convert raw strings into tensors indices
     for ln in ['src', 'tgt']:
         vocab.text_transform[ln] = collation_mask.sequential_transforms(
-            vocab.vocab_transform[ln], 
-            collation_mask.tensor_transform)  # Add BOS/EOS and create tensor
+                vocab.vocab_transform[ln], collation_mask.tensor_transform)  # Add BOS/EOS and create tensor
 
     # Training
     if cfg.do_train:
-        model = Seq2SeqTransformer(num_encoder_layers=cfg.ex.model.num_encoder_layers,
+        model = MyTransformer(num_encoder_layers=cfg.ex.model.num_encoder_layers,
                                    num_decoder_layers=cfg.ex.model.num_decoder_layers,
                                    emb_size=cfg.ex.model.emb_size,
                                    nhead=cfg.ex.model.nhead,
-                                   src_vocab_size=len(
-                                       vocab.vocab_transform['src']),
-                                   tgt_vocab_size=len(
-                                       vocab.vocab_transform['tgt']),
+                                   src_vocab_size=len(vocab.vocab_transform['src']),
+                                   tgt_vocab_size=len(vocab.vocab_transform['tgt']),
                                    dim_feedforward=cfg.ex.model.ffn_hid_dim)
+        model = model.to(device)
         logger.info('\n' + str(model))
 
         for p in model.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
-        model = model.to(device)
-
         loss_fn = torch.nn.CrossEntropyLoss(ignore_index=vocab.PAD_IDX)
+        loss_fn_for_sim = nn.KLDivLoss(reduction="batchmean", log_target=True)
+        loss_sentweight_fn = SentWeightedCrossEntropyLoss(ignore_index=vocab.PAD_IDX)
 
-        # optimizer = torch.optim.AdamW(
-        #     transformer.parameters(), lr=0.001, betas=(0.9, 0.98), eps=1e-9)
+        # optimizer = torch.optim.AdamW(transformer.parameters(), lr=0.001, betas=(0.9, 0.98), eps=1e-9)
+        optimizer = NoamOpt(512, cfg.ex.model.warmup, torch.optim.Adam(model.parameters(), lr=0, betas=(0.9, 0.998), eps=1e-9))
 
-        optimizer = NoamOpt(512, cfg.ex.model.warmup, torch.optim.Adam(
-            model.parameters(), lr=0, betas=(0.9, 0.998), eps=1e-9))
+        wandb.watch(model, loss_fn, log="all", log_freq=10)
 
         ######################################################################
         # Now we have all the ingredients to train our model. Let's do it!
-        wandb.watch(model, loss_fn, log="all", log_freq=10)
-
         for epoch in range(1, cfg.ex.model.num_epochs + 1):
             start_time = timer()
-            train_loss = train_epoch(
-                collation_mask, train_data, model, optimizer, loss_fn, cfg, device)
+            train_loss = train_epoch(collation_mask, train_data, model, optimizer, loss_fn, loss_fn_for_sim, loss_sentweight_fn, cfg, device)
             end_time = timer()
-            val_loss = evaluate(collation_mask, dev_data, model, loss_fn, cfg, device)
-            torch.save(model.state_dict(),
-                       Path( cwd / '{}/model_{}.pt'.format(cfg.ex.checkpoint, epoch)))
+            val_loss = evaluate(collation_mask, dev_data, model, loss_fn, loss_fn_for_sim, loss_sentweight_fn, cfg, device)
+            torch.save(model.state_dict(), Path( cwd / '{}/model_{}.pt'.format(cfg.ex.checkpoint, epoch)))
             logger.info(f"Epoch: {epoch}, Train loss: {train_loss:.3f}, Train ppl: {math.exp(train_loss):.3f}, Val loss: {val_loss:.3f}, Val ppl: {math.exp(val_loss):.3f}, "f"Epoch time = {(end_time - start_time):.3f}s")
             wandb.log({
                 'Train loss': train_loss,
@@ -217,43 +264,28 @@ def main(cfg: DictConfig):
 
     # Predict
     if cfg.do_predict:
-        model = Seq2SeqTransformer(num_encoder_layers=cfg.ex.model.num_encoder_layers,
+        model = MyTransformer(num_encoder_layers=cfg.ex.model.num_encoder_layers,
                                    num_decoder_layers=cfg.ex.model.num_decoder_layers,
                                    emb_size=cfg.ex.model.emb_size,
                                    nhead=cfg.ex.model.nhead,
-                                   src_vocab_size=len(
-                                       vocab.vocab_transform['src']),
-                                   tgt_vocab_size=len(
-                                       vocab.vocab_transform['tgt']),
+                                   src_vocab_size=len(vocab.vocab_transform['src']),
+                                   tgt_vocab_size=len(vocab.vocab_transform['tgt']),
                                    dim_feedforward=cfg.ex.model.ffn_hid_dim)
         if cfg.ex.load_checkpoint != '':
             model.load_state_dict(torch.load(cwd / Path(cfg.ex.load_checkpoint)))
         model.to(device)
-        model.eval()
 
-        test_dataloader = DataLoader(test_data, shuffle=False)
-
-        out_list = []
-        out_lqmt_list = []  # log q_mt
-
-        for i, batch in enumerate(test_dataloader):
-            print('No.{}:{}'.format(i, batch['src']))
-            tmp, q_mts = translate(collation_mask, vocab, model, batch['src'][0], device)
-            out_list.append(tmp + '\n')
-            out_lqmt_list.append(q_mts)
+        out_txt_list, out_qmt_list = translate(collation_mask, test_data, model, vocab, cfg, device)
 
         with open(cfg.ex.out_txt, 'w') as f:
-            f.writelines(out_list)
+            f.writelines(out_txt_list)
 
         with open(cfg.ex.out_lqmt + '.csv', 'w') as f:
             writer = csv.writer(f)
-            writer.writerows(out_lqmt_list)
+            writer.writerows(out_qmt_list)
 
 
-if __name__ == "__main__":
-    # if os.getcwd()[-3:] == 'rer':
-    #     os.chdir("..")
-    
+if __name__ == "__main__":    
     # Fix seed
     seed: Final[int] = 8128
     random.seed(seed)   # python

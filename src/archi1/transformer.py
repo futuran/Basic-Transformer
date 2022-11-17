@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 from torch.nn import Transformer
+from typing import List
 
 
 class PositionalEncoding(nn.Module):
@@ -35,7 +36,7 @@ class TokenEmbedding(nn.Module):
         return self.embedding(tokens.long()) * math.sqrt(self.emb_size)
 
 
-class Seq2SeqTransformer(nn.Module):
+class OriginalTransformer(nn.Module):
     """
     ---------------------------------
     Seq2Seq Network using Transformer
@@ -62,7 +63,7 @@ class Seq2SeqTransformer(nn.Module):
                  tgt_vocab_size: int,
                  dim_feedforward: int = 512,
                  dropout: float = 0.1):
-        super(Seq2SeqTransformer, self).__init__()
+        super(OriginalTransformer, self).__init__()
         self.transformer = Transformer(d_model=emb_size,
                                        nhead=nhead,
                                        num_encoder_layers=num_encoder_layers,
@@ -104,3 +105,87 @@ class Seq2SeqTransformer(nn.Module):
         return self.transformer.decoder(self.positional_encoding(
             self.tgt_tok_emb(tgt)), memory,
             tgt_mask)
+
+    
+class MyTransformer(nn.Module):
+    def __init__(self,
+                 num_encoder_layers: int,
+                 num_decoder_layers: int,
+                 emb_size: int,
+                 nhead: int,
+                 src_vocab_size: int,
+                 tgt_vocab_size: int,
+                 dim_feedforward: int = 512,
+                 dropout: float = 0.1):
+        super(MyTransformer, self).__init__()
+        self.transformer = Transformer(d_model=emb_size,
+                                       nhead=nhead,
+                                       num_encoder_layers=num_encoder_layers,
+                                       num_decoder_layers=num_decoder_layers,
+                                       dim_feedforward=dim_feedforward,
+                                       dropout=dropout,
+                                       layer_norm_eps=1e-6,
+                                       norm_first=True)
+        self.generator = nn.Linear(emb_size, tgt_vocab_size)
+        self.src_tok_emb = TokenEmbedding(src_vocab_size, emb_size)
+        # self.tgt_tok_emb = TokenEmbedding(tgt_vocab_size, emb_size)
+        # for share embedding
+        self.tgt_tok_emb = self.src_tok_emb
+
+        self.positional_encoding = PositionalEncoding(emb_size, dropout=dropout)
+
+        self.softmax = nn.Softmax(dim=1)
+        self.log_softmax = nn.LogSoftmax(dim=2)
+
+    def forward(self,
+                src: Tensor,
+                tgt: Tensor,
+                src_type_label: List,
+                src_length_mask: Tensor,
+                src_mask: Tensor,
+                tgt_mask: Tensor,
+                src_padding_mask: Tensor,
+                tgt_padding_mask: Tensor,
+                memory_key_padding_mask: Tensor):
+        src_emb = self.positional_encoding(self.src_tok_emb(src))
+        tgt_emb = self.positional_encoding
+
+        is_batched = src_emb.dim() == 3
+        if not self.transformer.batch_first and src_emb.size(1) != tgt_emb.size(1) and is_batched:
+            raise RuntimeError("the batch number of src and tgt must be equal")
+        elif self.transformer.batch_first and src_emb.size(0) != tgt_emb.size(0) and is_batched:
+            raise RuntimeError("the batch number of src and tgt must be equal")
+        if src_emb.size(-1) != self.transformer.d_model or tgt_emb.size(-1) != self.transformer.d_model:
+            raise RuntimeError("the feature number of src and tgt must be equal to d_model")
+
+        memory = self.transformer.encoder(src_emb, mask=src_mask, src_key_padding_mask=src_padding_mask)
+        src_length_mask = src_length_mask.unsqueeze(dim=2).expand(-1,-1, src_emb.shape[2])
+        memory = torch.mul(memory,src_length_mask)
+        outs   = self.transformer.decoder(tgt_emb, memory, tgt_mask=tgt_mask, memory_mask=None,
+                                            tgt_key_padding_mask=tgt_padding_mask,
+                                            memory_key_padding_mask=memory_key_padding_mask)
+        return self.generator(outs), memory
+
+    def encode(self, src: Tensor, src_mask: Tensor):
+        src_emb = self.positional_encoding(self.src_tok_emb(src))
+        memory = self.transformer.encoder(src_emb, src_mask)
+        return memory
+
+    def decode(self, tgt: Tensor, memory: Tensor, tgt_mask: Tensor):
+        tgt_emb = self.positional_encoding(self.tgt_tok_emb(tgt))
+        outs = self.transformer.decoder(tgt_emb, memory, tgt_mask)
+        return outs
+
+    def encode_with_mask(self, src: Tensor, src_mask: Tensor, src_padding_mask: Tensor, src_length_mask: Tensor):
+        src_emb = self.positional_encoding(self.src_tok_emb(src))
+        memory = self.transformer.encoder(src_emb, mask=src_mask, src_key_padding_mask=src_padding_mask)
+        src_length_mask = src_length_mask.unsqueeze(dim=2).expand(-1,-1, src_emb.shape[2])
+        memory = torch.mul(memory, src_length_mask)
+        return memory
+
+    def decode_for_training(self, tgt: Tensor, memory: Tensor, tgt_mask: Tensor, tgt_padding_mask: Tensor, memory_key_padding_mask: Tensor):
+        tgt_emb = self.positional_encoding(self.tgt_tok_emb(tgt))
+        outs = self.transformer.decoder(tgt_emb, memory, tgt_mask=tgt_mask, memory_mask=None,
+                                        tgt_key_padding_mask=tgt_padding_mask,
+                                        memory_key_padding_mask=memory_key_padding_mask)
+        return self.generator(outs)

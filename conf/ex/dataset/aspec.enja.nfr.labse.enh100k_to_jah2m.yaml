@@ -1,3 +1,0 @@
-train: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/match_enh1m_to_jah2m/train_h100k.match
-dev: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/match_enh1m_to_jah2m/dev.match
-test: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/match_enh1m_to_jah2m/test.match

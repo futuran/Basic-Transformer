@@ -1,12 +1,9 @@
 import torch
 import numpy as np
 
-def greedy_decode(collation_mask, vocab, model, src, src_mask, max_len, start_symbol, device):
+def greedy_decode(collation_mask, vocab, model, src, memory, max_len, start_symbol, device):
     # function to generate output sequence using greedy algorithm
-    src = src.to(device)
-    src_mask = src_mask.to(device)
 
-    memory = model.encode(src, src_mask)
     ys = torch.ones(1, 1).fill_(start_symbol).type(torch.long).to(device)
 
     q_mt = 1.0
@@ -28,8 +25,7 @@ def greedy_decode(collation_mask, vocab, model, src, src_mask, max_len, start_sy
 
         q_mts.append('{:.10f}'.format(_))
 
-        ys = torch.cat([ys, torch.ones(1, 1).type_as(
-            src.data).fill_(next_word)], dim=0)
+        ys = torch.cat([ys, torch.ones(1, 1).type_as(src.data).fill_(next_word)], dim=0)
         if next_word == vocab.EOS_IDX:
             break
 

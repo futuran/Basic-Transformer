@@ -31,26 +31,57 @@ class CollationAndMask:
                         torch.tensor(token_ids, dtype=torch.int64),
                         torch.tensor([self.vocab.EOS_IDX], dtype=torch.int64)))
 
-
-    def collate_fn(self, batch):
-        # batch[0]
-        # {'src': 'These results indicated that the insulin deficiency causes change of the protein metabolism and collapse of the muscle protein . | これら の 結果 は ， Ｉ 型 および ＩＩＩ 型 コラーゲン の 合成 と 分解 が 蛋白質 欠乏 によって 影響 さ れる こと を 示し た 。 | 運動@@ 不足 は 筋肉 で の インスリン抵抗性 を 誘導 し ， 糖質 代謝 障害 に 導く 。 | これら の 結果 は 運動 や エタノール の 急性 投与 が 生体 内 に 脂質 過 酸化 を 誘発 する こと を 示唆 し た 。', 'tgt': 'インシュリン 不足 が 蛋白 代謝 の 変化 および 筋 蛋白 の 崩壊 を 引き起こす こと を 示唆 し た 。', 'sent_idx': 74949}
-        
+    
+    def collate_fn_orig(self, batch):
         # function to collate data samples into batch tesors
         src_batch, tgt_batch = [], []
         for x in batch:
-            splited=x['src'].split('|')
-            num_sim = len(splited) - 1
-            for i in range(num_sim):
-                src_batch.append(self.vocab.text_transform['src'](('|'.join([splited[0], splited[i+1]]).split())))
-                tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
-            
-                # print('|'.join([splited[0], splited[i+1]]))
-                # print(x['tgt'])
+            src_batch.append(self.vocab.text_transform['src'](x['src'].replace('|', '<sep>').split()))
+            tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
 
         src_batch = pad_sequence(src_batch, padding_value=self.vocab.PAD_IDX)
         tgt_batch = pad_sequence(tgt_batch, padding_value=self.vocab.PAD_IDX)
         return src_batch, tgt_batch
+        
+    
+    def collate_fn(self, batch):
+        # function to collate data samples into batch tesors
+        src_batch = []                  # srcのテンソル
+        tgt_batch = []                  # tgtのテンソル
+        src_length_mask_batch = []      # src文のみの文長（単語数・sep記号は含まず）
+        sim_ranks = []                  # src+ref:0 , src+sim:1,2,...
+        sim_scores = []                 # LaBSEなどのpre-rankingモデルでの類似度
+
+        for x in batch:
+            src_and_sims_list = x['src'].split('|') # 0:orig_src 1~:sims
+            src_length = len(src_and_sims_list[0].split())
+
+            match_list = x['match'].split(' ||| ')
+
+            # src+ref
+            tmp = ' <sep> '.join([src_and_sims_list[0], x['tgt']])
+            src_batch.append(self.vocab.text_transform['src'](tmp.split()))
+            tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
+            sim_ranks.append(0)
+            src_length_mask_batch.append(torch.ones(src_length))
+            sim_scores.append(1)
+
+            # src+sim
+            for i in range(1,len(src_and_sims_list)):
+                tmp = ' <sep> '.join([src_and_sims_list[0], src_and_sims_list[i]])
+                src_batch.append(self.vocab.text_transform['src'](tmp.split()))
+                tgt_batch.append(self.vocab.text_transform['tgt'](batch['tgt'].split()))
+                sim_ranks.append(i)
+                src_length_mask_batch.append(torch.ones(src_length))
+                sim_scores.append(float(match_list[i].split()[1]))
+
+        src_batch = pad_sequence(src_batch, padding_value=self.vocab.PAD_IDX)
+        tgt_batch = pad_sequence(tgt_batch, padding_value=self.vocab.PAD_IDX)
+
+        src_length_mask_batch.append(torch.zeros(src_batch.shape[0]))
+        src_length_mask_batch = pad_sequence(src_length_mask_batch, padding_value=0)[:,:-1]
+
+        return src_batch, tgt_batch, sim_ranks, src_length_mask_batch, torch.tensor(sim_scores)
 
 
     ######################################################################
@@ -70,8 +101,7 @@ class CollationAndMask:
         tgt_seq_len = tgt.shape[0]
 
         tgt_mask = self.generate_square_subsequent_mask(tgt_seq_len, device)
-        src_mask = torch.zeros((src_seq_len, src_seq_len),
-                            device=device).type(torch.bool)
+        src_mask = torch.zeros((src_seq_len, src_seq_len), device=device).type(torch.bool)
 
         src_padding_mask = (src == self.vocab.PAD_IDX).transpose(0, 1)
         tgt_padding_mask = (tgt == self.vocab.PAD_IDX).transpose(0, 1)

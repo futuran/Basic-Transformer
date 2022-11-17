@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 from torch.nn import Transformer
+from typing import List
 
 
 class PositionalEncoding(nn.Module):
@@ -35,7 +36,7 @@ class TokenEmbedding(nn.Module):
         return self.embedding(tokens.long()) * math.sqrt(self.emb_size)
 
 
-class Seq2SeqTransformer(nn.Module):
+class OriginalTransformer(nn.Module):
     """
     ---------------------------------
     Seq2Seq Network using Transformer
@@ -62,7 +63,7 @@ class Seq2SeqTransformer(nn.Module):
                  tgt_vocab_size: int,
                  dim_feedforward: int = 512,
                  dropout: float = 0.1):
-        super(Seq2SeqTransformer, self).__init__()
+        super(OriginalTransformer, self).__init__()
         self.transformer = Transformer(d_model=emb_size,
                                        nhead=nhead,
                                        num_encoder_layers=num_encoder_layers,

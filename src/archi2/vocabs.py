@@ -10,6 +10,7 @@ class Vocab:
         self.PAD_IDX = 1
         self.BOS_IDX = 2
         self.EOS_IDX = 3
+        self.SEP_IDX = 4
         # Make sure the tokens are in order of their indices to properly insert them in vocab
-        self.special_symbols = ['<unk>', '<pad>', '<bos>', '<eos>']
+        self.special_symbols = ['<unk>', '<pad>', '<bos>', '<eos>', '<sep>']
 

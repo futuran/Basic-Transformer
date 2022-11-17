@@ -1,3 +1,4 @@
 src:  /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec/aspec_train.en.tkn.bpe
 tgt:  /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec/aspec_train.ja.tkn.bpe
+match: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/match_enh1m_to_jah2m/train_h100k.match  # dummy
 save: /mnt/work/20221004_RetrieveEditRerank-NMT/Basic-Transformer/vocab/aspec_vocab.pt

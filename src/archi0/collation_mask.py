@@ -31,19 +31,18 @@ class CollationAndMask:
                         torch.tensor(token_ids, dtype=torch.int64),
                         torch.tensor([self.vocab.EOS_IDX], dtype=torch.int64)))
 
-
-    def collate_fn(self, batch):
+    
+    def collate_fn_orig(self, batch):
         # function to collate data samples into batch tesors
         src_batch, tgt_batch = [], []
         for x in batch:
-            src_batch.append(self.vocab.text_transform['src'](x['src'].split()))
+            src_batch.append(self.vocab.text_transform['src'](x['src'].replace('|', '<sep>').split()))
             tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
 
         src_batch = pad_sequence(src_batch, padding_value=self.vocab.PAD_IDX)
         tgt_batch = pad_sequence(tgt_batch, padding_value=self.vocab.PAD_IDX)
         return src_batch, tgt_batch
-
-
+        
     ######################################################################
     # During training, we need a subsequent word mask that will prevent model to look into
     # the future words when making predictions. We will also need masks to hide
@@ -61,8 +60,7 @@ class CollationAndMask:
         tgt_seq_len = tgt.shape[0]
 
         tgt_mask = self.generate_square_subsequent_mask(tgt_seq_len, device)
-        src_mask = torch.zeros((src_seq_len, src_seq_len),
-                            device=device).type(torch.bool)
+        src_mask = torch.zeros((src_seq_len, src_seq_len), device=device).type(torch.bool)
 
         src_padding_mask = (src == self.vocab.PAD_IDX).transpose(0, 1)
         tgt_padding_mask = (tgt == self.vocab.PAD_IDX).transpose(0, 1)
