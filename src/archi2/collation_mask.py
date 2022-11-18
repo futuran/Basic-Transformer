@@ -72,7 +72,7 @@ class CollationAndMask:
 
             # src+sim
             for i in range(1,len(src_and_sims_list)):
-                tmp = ' | '.join([src_and_sims_list[0], src_and_sims_list[i]])
+                tmp = ' <sep> '.join([src_and_sims_list[0], src_and_sims_list[i]])
                 src_batch.append(self.vocab.text_transform['src'](tmp.split()))
                 # tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
                 sim_ranks.append(i)

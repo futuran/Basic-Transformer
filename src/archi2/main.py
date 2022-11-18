@@ -89,8 +89,7 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
         losses += loss.item()
 
         wandb.log({
-                'Train Orig loss': loss_orig,
-                'Train Cosw loss': loss,
+                'Train loss in Batch': loss,
                 # 'Cos of Ref and Sim-1': torch.mean(wight_for_each_sent_loss[1::num_sim]),
                 # 'Cos of Ref and Sim-2': torch.mean(wight_for_each_sent_loss[2::num_sim]),
                 # 'Cos of Ref and Sim-K': torch.mean(wight_for_each_sent_loss[num_sim-1::num_sim]),
@@ -157,13 +156,10 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
 
         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = collation_mask.create_mask(src, tgt_input, device)
 
-
-        # logits, encoder_outs = model(src, tgt_input, sim_ranks, src_length_mask, src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
-
         # ENCODING
-        memory = model.encode4train(src, src_mask, src_padding_mask, src_length_mask)
+        # memory = model.encode_with_mask(src, src_mask, src_padding_mask, src_length_mask)
+        memory = model.encode_with_mask_for_prediction(src, src_mask, src_length_mask)
         memory = torch.reshape(memory.transpose(0,1), (int(memory.shape[1]/num_sim) , -1, memory.shape[2])).transpose(0,1).contiguous() #concat
-
 
         # GREEDY DECODING
         tgt_tokens, q_mts = greedy_decode(

@@ -183,6 +183,13 @@ class MyTransformer(nn.Module):
         memory = torch.mul(memory, src_length_mask)
         return memory
 
+    def encode_with_mask_for_prediction(self, src: Tensor, src_mask: Tensor, src_length_mask: Tensor):
+        src_emb = self.positional_encoding(self.src_tok_emb(src))
+        memory = self.transformer.encoder(src_emb, mask=src_mask)
+        src_length_mask = src_length_mask.unsqueeze(dim=2).expand(-1,-1, src_emb.shape[2])
+        memory = torch.mul(memory, src_length_mask)
+        return memory
+
     def decode_for_training(self, tgt: Tensor, memory: Tensor, tgt_mask: Tensor, tgt_padding_mask: Tensor, memory_key_padding_mask: Tensor):
         tgt_emb = self.positional_encoding(self.tgt_tok_emb(tgt))
         outs = self.transformer.decoder(tgt_emb, memory, tgt_mask=tgt_mask, memory_mask=None,
