@@ -136,9 +136,6 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
         out_txt_list.append(out + '\n')
         out_qmt_list.append(q_mts)
 
-        if i== 10:
-            break
-
     return out_txt_list, out_qmt_list
 
 
