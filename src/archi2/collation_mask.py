@@ -74,7 +74,7 @@ class CollationAndMask:
             for i in range(1,len(src_and_sims_list)):
                 tmp = ' | '.join([src_and_sims_list[0], src_and_sims_list[i]])
                 src_batch.append(self.vocab.text_transform['src'](tmp.split()))
-                # tgt_batch.append(self.vocab.text_transform['tgt'](batch['tgt'].split()))
+                # tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
                 sim_ranks.append(i)
                 src_length_mask_batch.append(torch.ones(src_length))
                 sim_scores.append(float(match_list[i].split()[1]))
