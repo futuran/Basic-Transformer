@@ -126,12 +126,15 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
     test_dataloader = DataLoader(test_data, batch_size=1, shuffle=False, collate_fn=collation_mask.collate_fn)
     
     for i, (src, tgt, sim_ranks, src_length_mask, sim_scores) in enumerate(test_dataloader):
+        # 第一類似文の事例のみ切り出す。
+        src = src[:,1:cfg.ex.num_sim+1]
+        src_length_mask = src_length_mask[:,1:cfg.ex.num_sim+1]
+        sim_scores = sim_scores[1:cfg.ex.num_sim+1]
+        
         # 目視確認用
         print(f'{i=}')
         print(" ".join(vocab.vocab_transform['src'].lookup_tokens(src.transpose(1,0)[0].numpy())).replace("<pad>", ""))
         # print(" ".join(vocab.vocab_transform['tgt'].lookup_tokens(tgt.transpose(1,0)[0].numpy())).replace("<pad>", ""))
-        
-        num_sim = int(cfg.ex.num_sim) + 1
 
         # テンソルをcpuからgpuに移す
         src = src.to(device)
@@ -144,8 +147,7 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = collation_mask.create_mask(src, tgt_input, device)
 
         # ENCODING
-        memory = model.encode4train(src, src_mask, src_padding_mask, src_length_mask)
-        # TODO: memoryは全ての類似文の事例を含むので、そのうち一文を切り出す作業が必要
+        memory = model.encode_with_mask(src, src_mask, src_padding_mask, src_length_mask)
 
         # GREEDY DECODING
         tgt_tokens, q_mts = greedy_decode(
