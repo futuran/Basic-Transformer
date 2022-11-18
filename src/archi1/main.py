@@ -127,9 +127,9 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
     
     for i, (src, tgt, sim_ranks, src_length_mask, sim_scores) in enumerate(test_dataloader):
         # 第一類似文の事例のみ切り出す。
-        src = src[:,1:cfg.ex.num_sim+1]
-        src_length_mask = src_length_mask[:,1:cfg.ex.num_sim+1]
-        sim_scores = sim_scores[1:cfg.ex.num_sim+1]
+        src = src[:,1::cfg.ex.num_sim+1]
+        src_length_mask = src_length_mask[:,1::cfg.ex.num_sim+1]
+        sim_scores = sim_scores[1::cfg.ex.num_sim+1]
         
         # 目視確認用
         print(f'{i=}')
@@ -147,7 +147,8 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = collation_mask.create_mask(src, tgt_input, device)
 
         # ENCODING
-        memory = model.encode_with_mask(src, src_mask, src_padding_mask, src_length_mask)
+        # memory = model.encode_with_mask(src, src_mask, src_padding_mask, src_length_mask)
+        memory = model.encode_with_mask_for_prediction(src, src_mask, src_length_mask)
 
         # GREEDY DECODING
         tgt_tokens, q_mts = greedy_decode(

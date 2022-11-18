@@ -11,8 +11,7 @@ def greedy_decode(collation_mask, vocab, model, src, memory, max_len, start_symb
 
     for i in range(max_len-1):
         memory = memory.to(device)
-        tgt_mask = (collation_mask.generate_square_subsequent_mask(ys.size(0), device)
-                    .type(torch.bool)).to(device)
+        tgt_mask = (collation_mask.generate_square_subsequent_mask(ys.size(0), device).type(torch.bool)).to(device)
         out = model.decode(ys, memory, tgt_mask)
         out = out.transpose(0, 1)
         prob = model.generator(out[:, -1])
