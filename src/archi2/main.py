@@ -88,12 +88,12 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
         optimizer.step()
         losses += loss.item()
 
-        wandb.log({
-                'Train loss in Batch': loss,
-                # 'Cos of Ref and Sim-1': torch.mean(wight_for_each_sent_loss[1::num_sim]),
-                # 'Cos of Ref and Sim-2': torch.mean(wight_for_each_sent_loss[2::num_sim]),
-                # 'Cos of Ref and Sim-K': torch.mean(wight_for_each_sent_loss[num_sim-1::num_sim]),
-                })
+        # wandb.log({
+        #         'Train loss in Batch': loss,
+        #         # 'Cos of Ref and Sim-1': torch.mean(wight_for_each_sent_loss[1::num_sim]),
+        #         # 'Cos of Ref and Sim-2': torch.mean(wight_for_each_sent_loss[2::num_sim]),
+        #         # 'Cos of Ref and Sim-K': torch.mean(wight_for_each_sent_loss[num_sim-1::num_sim]),
+        #         })
 
     return losses / len(train_dataloader)
 
@@ -196,7 +196,7 @@ def main(cfg: DictConfig):
 
     # Building Vocabulary
     vocab = Vocab()
-    collation_mask = CollationAndMask(vocab)
+    collation_mask = CollationAndMask(vocab, cfg.ex.num_sim)
     if os.path.isfile(cfg.ex.vocab.save) == True:
         logger.info('load exsiting vocab file...')
         logger.info(cfg.ex.vocab.save)

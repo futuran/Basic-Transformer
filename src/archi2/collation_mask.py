@@ -1,12 +1,13 @@
 import torch
 from torch.nn.utils.rnn import pad_sequence
 from typing import List
-
+import random
 
 class CollationAndMask:
-    def __init__(self, vocab):
+    def __init__(self, vocab, num_sim):
         self.vocab = vocab
         self.is_prediction = False
+        self.num_sim = num_sim
 
     ######################################################################
     # Collation
@@ -56,28 +57,50 @@ class CollationAndMask:
         for x in batch:
             src_and_sims_list = x['src'].split('|') # 0:orig_src 1~:sims
             src_length = len(src_and_sims_list[0].split())
+            if len(src_and_sims_list) != self.num_sim + 1:
+                print(f'{src_length=}')
+                print(f'{self.num_sim=}')
+                print('error')
 
             match_list = x['match'].split(' ||| ')
 
+
+            tmp_src_batch = []                  # srcのテンソル
+            tmp_tgt_batch = []                  # tgtのテンソル
+            tmp_src_length_mask_batch = []      # src文のみの文長（単語数・sep記号は含まず）
+            tmp_sim_ranks = []                  # src+ref:0 , src+sim:1,2,...
+            tmp_sim_scores = []                 # LaBSEなどのpre-rankingモデルでの類似度
+
             # src+ref
             if self.is_prediction:
-                tmp = ' <sep> '.join([src_and_sims_list[0], ''])    # collate_fnの違いはここだけ！
+                tmp = ' <sep> '.join([src_and_sims_list[0], src_and_sims_list[1]])    # collate_fnの違いはここだけ！
             else:
                 tmp = ' <sep> '.join([src_and_sims_list[0], x['tgt']])
-            src_batch.append(self.vocab.text_transform['src'](tmp.split()))
-            tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
-            sim_ranks.append(0)
-            src_length_mask_batch.append(torch.ones(src_length))
-            sim_scores.append(1)
+            tmp_src_batch.append(self.vocab.text_transform['src'](tmp.split()))
+            tmp_tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
+            tmp_sim_ranks.append(0)
+            tmp_src_length_mask_batch.append(torch.ones(src_length))
+            tmp_sim_scores.append(1)
 
             # src+sim
             for i in range(1,len(src_and_sims_list)):
                 tmp = ' <sep> '.join([src_and_sims_list[0], src_and_sims_list[i]])
-                src_batch.append(self.vocab.text_transform['src'](tmp.split()))
-                # tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
-                sim_ranks.append(i)
-                src_length_mask_batch.append(torch.ones(src_length))
-                sim_scores.append(float(match_list[i].split()[1]))
+                tmp_src_batch.append(self.vocab.text_transform['src'](tmp.split()))
+                # tmp_tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
+                tmp_sim_ranks.append(i)
+                tmp_src_length_mask_batch.append(torch.ones(src_length))
+                tmp_sim_scores.append(float(match_list[i].split()[1]))
+
+            # 順序のシャッフル
+            random.seed(8128)
+            zipped = list(zip(tmp_src_batch, tmp_src_length_mask_batch, tmp_sim_ranks, tmp_sim_scores))
+            random.shuffle(zipped)
+            tmp_src_batch, tmp_src_length_mask_batch, tmp_sim_ranks, tmp_sim_scores = zip(*zipped)
+            src_batch += tmp_src_batch
+            tgt_batch += tmp_tgt_batch
+            src_length_mask_batch += tmp_src_length_mask_batch
+            sim_ranks += tmp_sim_ranks
+            sim_scores += tmp_sim_scores
 
         src_batch = pad_sequence(src_batch, padding_value=self.vocab.PAD_IDX)
         tgt_batch = pad_sequence(tgt_batch, padding_value=self.vocab.PAD_IDX)
