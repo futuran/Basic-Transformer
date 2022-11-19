@@ -1,7 +1,7 @@
 defaults:
     - _self_
     # - ex: aspec.enja.baseline.100k
-    - ex: aspec.enja.nfr.labse.enh100k_to_jah2m.top2.archi2
+    - ex: aspec.enja.nfr.labse.enh100k_to_jah2m.top1.archi2
     # - ex: debug2
 
 do_train: True

@@ -54,16 +54,12 @@ class CollationAndMask:
         sim_ranks = []                  # src+ref:0 , src+sim:1,2,...
         sim_scores = []                 # LaBSEなどのpre-rankingモデルでの類似度
 
-        for x in batch:
+
+        for idx, x in enumerate(batch):
             src_and_sims_list = x['src'].split('|') # 0:orig_src 1~:sims
             src_length = len(src_and_sims_list[0].split())
-            if len(src_and_sims_list) != self.num_sim + 1:
-                print(f'{src_length=}')
-                print(f'{self.num_sim=}')
-                print('error')
 
             match_list = x['match'].split(' ||| ')
-
 
             tmp_src_batch = []                  # srcのテンソル
             tmp_tgt_batch = []                  # tgtのテンソル
@@ -73,14 +69,14 @@ class CollationAndMask:
 
             # src+ref
             if self.is_prediction:
-                tmp = ' <sep> '.join([src_and_sims_list[0], src_and_sims_list[1]])    # collate_fnの違いはここだけ！
+                tmp_tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
             else:
                 tmp = ' <sep> '.join([src_and_sims_list[0], x['tgt']])
-            tmp_src_batch.append(self.vocab.text_transform['src'](tmp.split()))
-            tmp_tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
-            tmp_sim_ranks.append(0)
-            tmp_src_length_mask_batch.append(torch.ones(src_length))
-            tmp_sim_scores.append(1)
+                tmp_src_batch.append(self.vocab.text_transform['src'](tmp.split()))
+                tmp_tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
+                tmp_sim_ranks.append(0)
+                tmp_src_length_mask_batch.append(torch.ones(src_length))
+                tmp_sim_scores.append(1)
 
             # src+sim
             for i in range(1,len(src_and_sims_list)):
@@ -90,9 +86,18 @@ class CollationAndMask:
                 tmp_sim_ranks.append(i)
                 tmp_src_length_mask_batch.append(torch.ones(src_length))
                 tmp_sim_scores.append(float(match_list[i].split()[1]))
+            else:
+                while len(tmp_src_batch) < self.num_sim + 1:
+                    tmp = ' <sep> '.join([src_and_sims_list[0], src_and_sims_list[1]])
+                    tmp_src_batch.append(self.vocab.text_transform['src'](tmp.split()))
+                    # tmp_tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
+                    tmp_sim_ranks.append(1)
+                    tmp_src_length_mask_batch.append(torch.ones(src_length))
+                    tmp_sim_scores.append(float(match_list[i].split()[1]))
+
+
 
             # 順序のシャッフル
-            random.seed(8128)
             zipped = list(zip(tmp_src_batch, tmp_src_length_mask_batch, tmp_sim_ranks, tmp_sim_scores))
             random.shuffle(zipped)
             tmp_src_batch, tmp_src_length_mask_batch, tmp_sim_ranks, tmp_sim_scores = zip(*zipped)

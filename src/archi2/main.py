@@ -141,8 +141,11 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
     for i, (src, tgt, sim_ranks, src_length_mask, sim_scores) in enumerate(test_dataloader):
         # 目視確認用
         print(f'{i=}')
-        print(" ".join(vocab.vocab_transform['src'].lookup_tokens(src.transpose(1,0)[0].numpy())).replace("<pad>", ""))
-        # print(" ".join(vocab.vocab_transform['tgt'].lookup_tokens(tgt.transpose(1,0)[0].numpy())).replace("<pad>", ""))
+        for x in src.transpose(1,0):
+            print(" ".join(vocab.vocab_transform['src'].lookup_tokens(x.numpy())).replace("<pad>", ""))
+
+        # print(" ".join(vocab.vocab_transform['src'].lookup_tokens(src.transpose(1,0)[0].numpy())).replace("<pad>", ""))
+        print(" ".join(vocab.vocab_transform['tgt'].lookup_tokens(tgt.transpose(1,0)[0].numpy())).replace("<pad>", ""))
         
         num_sim = int(cfg.ex.num_sim) + 1
 
