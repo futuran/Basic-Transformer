@@ -102,11 +102,11 @@ class CollationAndMask:
             # zipped = list(zip(tmp_src_batch, tmp_src_length_mask_batch, tmp_sim_ranks, tmp_sim_scores))
             # random.shuffle(zipped)
             # tmp_src_batch, tmp_src_length_mask_batch, tmp_sim_ranks, tmp_sim_scores = zip(*zipped)
-            # src_batch += tmp_src_batch
-            # tgt_batch += tmp_tgt_batch
-            # src_length_mask_batch += tmp_src_length_mask_batch
-            # sim_ranks += tmp_sim_ranks
-            # sim_scores += tmp_sim_scores
+            src_batch += tmp_src_batch
+            tgt_batch += tmp_tgt_batch
+            src_length_mask_batch += tmp_src_length_mask_batch
+            sim_ranks += tmp_sim_ranks
+            sim_scores += tmp_sim_scores
 
         src_batch = pad_sequence(src_batch, padding_value=self.vocab.PAD_IDX)
         tgt_batch = pad_sequence(tgt_batch, padding_value=self.vocab.PAD_IDX)
