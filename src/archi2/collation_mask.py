@@ -88,7 +88,7 @@ class CollationAndMask:
                 tmp_src_length_mask_batch.append(torch.ones(src_length))
                 tmp_sim_scores.append(float(match_list[i].split()[1]))
             else:
-                while len(tmp_src_batch) < self.num_sim + 1 - 1:
+                while len(tmp_src_batch) < self.num_sim + 1:
                     tmp = ' <sep> '.join([src_and_sims_list[0], src_and_sims_list[1]])
                     tmp_src_batch.append(self.vocab.text_transform['src'](tmp.split()))
                     # tmp_tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
