@@ -135,7 +135,7 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
     out_qmt_list = []
     
     model.eval()
-    collation_mask.is_prediction = True # prediction時にrefを入れないように。
+    # collation_mask.is_prediction = True # prediction時にrefを入れないように。
     test_dataloader = DataLoader(test_data, batch_size=1, shuffle=False, collate_fn=collation_mask.collate_fn)
     
     for i, (src, tgt, sim_ranks, src_length_mask, sim_scores) in enumerate(test_dataloader):
