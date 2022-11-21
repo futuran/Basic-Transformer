@@ -11,13 +11,13 @@ from tqdm import tqdm
 import wandb
 wandb.login()
 
-from src.archi2.collation_mask import *
-from src.archi2.optimizer import *
-from src.archi2.vocabs import *
-from src.archi2.load_data import *
-from src.archi2.transformer import *
-from src.archi2.decode import *
-from src.archi2.loss import *
+from src.archi3.collation_mask import *
+from src.archi3.optimizer import *
+from src.archi3.vocabs import *
+from src.archi3.load_data import *
+from src.archi3.transformer import *
+from src.archi3.decode import *
+from src.archi3.loss import *
 
 # log関連
 from src.util.logger import *
@@ -63,41 +63,27 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
 
         # ENCODING
         memory = model.encode_with_mask(src, src_mask, src_padding_mask, src_length_mask)
-        # length方向にconcat
-        # memory = torch.reshape(memory.transpose(0,1), (int(memory.shape[1]/num_sim) , -1, memory.shape[2])).transpose(0,1).contiguous() 
-        # dim方向を足す
-        W = torch.repeat_interleave(torch.eye(int(memory.shape[1]/num_sim)), num_sim, dim=0).to(device)
-        memory = torch.matmul(memory.transpose(1,2),W).transpose(1,2)
 
         # DECODING
-        # src_padding_mask_for_decode = torch.reshape(src_padding_mask, (int(src_padding_mask.shape[0]/num_sim) , -1))
-        src_padding_mask_for_decode = src_padding_mask[0::num_sim,:]
-        logits = model.decode_for_training(tgt_input, memory, tgt_mask, tgt_padding_mask, src_padding_mask_for_decode)
+        logits = model.decode_for_training(tgt_input, memory, tgt_mask, tgt_padding_mask, src_padding_mask)
 
         # optimizer.zero_grad() # for Original Adam
         optimizer.optimizer.zero_grad()  # for w/ Noam
 
         tgt_out = tgt[1:, :]
 
-        # softmax = nn.LogSoftmax(dim=0)
-        # sim_scores = -softmax(sim_scores/0.1)
-
-        # various losses
-        loss_orig = loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
-        loss_sentweight = 0 #loss_sentweight_fn(logits, tgt_out, sim_scores)
-
-        loss = loss_orig
+        loss = loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
 
         loss.backward()
         optimizer.step()
         losses += loss.item()
 
-        # wandb.log({
-        #         'Train loss in Batch': loss,
-        #         # 'Cos of Ref and Sim-1': torch.mean(wight_for_each_sent_loss[1::num_sim]),
-        #         # 'Cos of Ref and Sim-2': torch.mean(wight_for_each_sent_loss[2::num_sim]),
-        #         # 'Cos of Ref and Sim-K': torch.mean(wight_for_each_sent_loss[num_sim-1::num_sim]),
-        #         })
+        wandb.log({
+                'Train loss in Batch': loss,
+                # 'Cos of Ref and Sim-1': torch.mean(wight_for_each_sent_loss[1::num_sim]),
+                # 'Cos of Ref and Sim-2': torch.mean(wight_for_each_sent_loss[2::num_sim]),
+                # 'Cos of Ref and Sim-K': torch.mean(wight_for_each_sent_loss[num_sim-1::num_sim]),
+                })
 
     return losses / len(train_dataloader)
 
@@ -119,18 +105,9 @@ def evaluate(collation_mask: CollationAndMask, dev_data, model, loss_fn, loss_fn
 
         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = collation_mask.create_mask(src, tgt_input, device)
 
-        # ENCODING
         memory = model.encode_with_mask(src, src_mask, src_padding_mask, src_length_mask)
-        # length方向にconcat
-        # memory = torch.reshape(memory.transpose(0,1), (int(memory.shape[1]/num_sim) , -1, memory.shape[2])).transpose(0,1).contiguous() 
-        # dim方向を足す
-        W = torch.repeat_interleave(torch.eye(int(memory.shape[1]/num_sim)), num_sim, dim=0).to(device)
-        memory = torch.matmul(memory.transpose(1,2),W).transpose(1,2)
 
-        # DECODING
-        # src_padding_mask_for_decode = torch.reshape(src_padding_mask, (int(src_padding_mask.shape[0]/num_sim) , -1))
-        src_padding_mask_for_decode = src_padding_mask[0::num_sim,:]
-        logits = model.decode_for_training(tgt_input, memory, tgt_mask, tgt_padding_mask, src_padding_mask_for_decode)
+        logits = model.decode_for_training(tgt_input, memory, tgt_mask, tgt_padding_mask, src_padding_mask)
 
         tgt_out = tgt[1:, :]
         loss = loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
@@ -145,19 +122,19 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
     out_qmt_list = []
     
     model.eval()
-    collation_mask.is_prediction = True # prediction時にrefを入れないように。
+    # collation_mask.is_prediction = True # prediction時にrefを入れないように。
     test_dataloader = DataLoader(test_data, batch_size=1, shuffle=False, collate_fn=collation_mask.collate_fn)
     
     for i, (src, tgt, sim_ranks, src_length_mask, sim_scores) in enumerate(test_dataloader):
+        # 第一類似文の事例のみ切り出す。
+        src = src[:,1::cfg.ex.num_sim+1]
+        src_length_mask = src_length_mask[:,1::cfg.ex.num_sim+1]
+        sim_scores = sim_scores[1::cfg.ex.num_sim+1]
+        
         # 目視確認用
         print(f'{i=}')
-        for x in src.transpose(1,0):
-            print(" ".join(vocab.vocab_transform['src'].lookup_tokens(x.numpy())).replace("<pad>", ""))
-
-        # print(" ".join(vocab.vocab_transform['src'].lookup_tokens(src.transpose(1,0)[0].numpy())).replace("<pad>", ""))
-        print(" ".join(vocab.vocab_transform['tgt'].lookup_tokens(tgt.transpose(1,0)[0].numpy())).replace("<pad>", ""))
-        
-        num_sim = int(cfg.ex.num_sim) + 1
+        print(" ".join(vocab.vocab_transform['src'].lookup_tokens(src.transpose(1,0)[0].numpy())).replace("<pad>", ""))
+        # print(" ".join(vocab.vocab_transform['tgt'].lookup_tokens(tgt.transpose(1,0)[0].numpy())).replace("<pad>", ""))
 
         # テンソルをcpuからgpuに移す
         src = src.to(device)
@@ -172,10 +149,9 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
         # ENCODING
         # memory = model.encode_with_mask(src, src_mask, src_padding_mask, src_length_mask)
         memory = model.encode_with_mask_for_prediction(src, src_mask, src_length_mask)
-        memory = torch.reshape(memory.transpose(0,1), (int(memory.shape[1]/num_sim) , -1, memory.shape[2])).transpose(0,1).contiguous() #concat
 
         # GREEDY DECODING
-        tgt_tokens, q_mts = greedy_decode(
+        tgt_tokens, q_mts = greedy_decode_with_simbeam(
             collation_mask, 
             vocab, 
             model,
@@ -209,7 +185,7 @@ def main(cfg: DictConfig):
 
     # Building Vocabulary
     vocab = Vocab()
-    collation_mask = CollationAndMask(vocab, cfg.ex.num_sim)
+    collation_mask = CollationAndMask(vocab)
     if os.path.isfile(cfg.ex.vocab.save) == True:
         logger.info('load exsiting vocab file...')
         logger.info(cfg.ex.vocab.save)
