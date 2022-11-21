@@ -127,9 +127,9 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
     
     for i, (src, tgt, sim_ranks, src_length_mask, sim_scores) in enumerate(test_dataloader):
         # 第一類似文の事例のみ切り出す。
-        src = src[:,1::cfg.ex.num_sim+1]
-        src_length_mask = src_length_mask[:,1::cfg.ex.num_sim+1]
-        sim_scores = sim_scores[1::cfg.ex.num_sim+1]
+        # src = src[:,1::cfg.ex.num_sim+1]
+        # src_length_mask = src_length_mask[:,1::cfg.ex.num_sim+1]
+        # sim_scores = sim_scores[1::cfg.ex.num_sim+1]
         
         # 目視確認用
         print(f'{i=}')
@@ -158,7 +158,7 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
             src,
             memory,
             max_len=128, 
-            start_symbol=vocab.BOS_IDX, device=device)
+            start_symbol=vocab.BOS_IDX, device=device, num_src_sim=cfg.ex.num_sim+1)
         tgt_tokens = tgt_tokens.flatten()
 
         out = " ".join(vocab.vocab_transform['tgt'].lookup_tokens(list(tgt_tokens.cpu().numpy()))).replace("<bos>", "").replace("<eos>", "")
