@@ -71,8 +71,8 @@ class CollationAndMask:
             if self.is_prediction:
                 tmp_tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
             else:
-                # tmp = ' <sep> '.join([src_and_sims_list[0], x['tgt']])
-                tmp = ' <sep> '.join([src_and_sims_list[0], ''])
+                tmp = ' <sep> '.join([src_and_sims_list[0], x['tgt']])
+                # tmp = ' <sep> '.join([src_and_sims_list[0], ''])
                 tmp_src_batch.append(self.vocab.text_transform['src'](tmp.split()))
                 tmp_tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
                 tmp_sim_ranks.append(0)
@@ -99,9 +99,9 @@ class CollationAndMask:
 
 
             # 順序のシャッフル
-            # zipped = list(zip(tmp_src_batch, tmp_src_length_mask_batch, tmp_sim_ranks, tmp_sim_scores))
-            # random.shuffle(zipped)
-            # tmp_src_batch, tmp_src_length_mask_batch, tmp_sim_ranks, tmp_sim_scores = zip(*zipped)
+            zipped = list(zip(tmp_src_batch, tmp_src_length_mask_batch, tmp_sim_ranks, tmp_sim_scores))
+            random.shuffle(zipped)
+            tmp_src_batch, tmp_src_length_mask_batch, tmp_sim_ranks, tmp_sim_scores = zip(*zipped)
             src_batch += tmp_src_batch
             tgt_batch += tmp_tgt_batch
             src_length_mask_batch += tmp_src_length_mask_batch

@@ -63,11 +63,15 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
 
         # ENCODING
         memory = model.encode_with_mask(src, src_mask, src_padding_mask, src_length_mask)
-        memory = torch.reshape(memory.transpose(0,1), (int(memory.shape[1]/num_sim) , -1, memory.shape[2])).transpose(0,1).contiguous() #concat
+        # length方向にconcat
+        # memory = torch.reshape(memory.transpose(0,1), (int(memory.shape[1]/num_sim) , -1, memory.shape[2])).transpose(0,1).contiguous() 
+        # dim方向を足す
+        W = torch.repeat_interleave(torch.eye(int(memory.shape[1]/num_sim)), num_sim, dim=0).to(device)
+        memory = torch.matmul(memory.transpose(1,2),W).transpose(1,2)
 
         # DECODING
-        src_padding_mask_for_decode = torch.reshape(src_padding_mask, (int(src_padding_mask.shape[0]/num_sim) , -1))
-        # src_padding_mask_for_decode = src_padding_mask[0::num_sim,:]
+        # src_padding_mask_for_decode = torch.reshape(src_padding_mask, (int(src_padding_mask.shape[0]/num_sim) , -1))
+        src_padding_mask_for_decode = src_padding_mask[0::num_sim,:]
         logits = model.decode_for_training(tgt_input, memory, tgt_mask, tgt_padding_mask, src_padding_mask_for_decode)
 
         # optimizer.zero_grad() # for Original Adam
