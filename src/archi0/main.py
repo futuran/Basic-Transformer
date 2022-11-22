@@ -129,12 +129,20 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
             memory,
             max_len=128, 
             start_symbol=vocab.BOS_IDX, device=device)
-        tgt_tokens = tgt_tokens.flatten()
 
+        # １文ずつデコーディングする場合
+        tgt_tokens = tgt_tokens.flatten()
         out = " ".join(vocab.vocab_transform['tgt'].lookup_tokens(list(tgt_tokens.cpu().numpy()))).replace("<bos>", "").replace("<eos>", "")
         print(out)
         out_txt_list.append(out + '\n')
         out_qmt_list.append(q_mts)
+
+        # batch単位でデコーディングする場合（未完成）
+        # for i in range(tgt_tokens.shape[1]):
+        #     out = " ".join(vocab.vocab_transform['tgt'].lookup_tokens(list(tgt_tokens[:,i].flatten().cpu().numpy())))#.replace("<bos>", "").replace("<eos>", "")
+        #     print(out)
+        #     out_txt_list.append(out + '\n')
+        #     out_qmt_list.append(q_mts)
 
     return out_txt_list, out_qmt_list
 
