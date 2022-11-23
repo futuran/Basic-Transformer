@@ -44,8 +44,8 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
 
     for src, tgt, sim_ranks, src_length_mask, sim_scores in tqdm(train_dataloader):
         # 目視確認用
-        # print(" ".join(vocab_transform['src'].lookup_tokens(src.transpose(1,0)[0].numpy())).replace("<pad>", ""))
-        # print(" ".join(vocab_transform['tgt'].lookup_tokens(tgt.transpose(1,0)[0].numpy())).replace("<pad>", ""))
+        # print(" ".join(collation_mask.vocab.vocab_transform['src'].lookup_tokens(src.transpose(1,0)[0].numpy())).replace("<pad>", ""))
+        # print(" ".join(collation_mask.vocab.vocab_transform['tgt'].lookup_tokens(tgt.transpose(1,0)[0].numpy())).replace("<pad>", ""))
 
         num_sim = int(cfg.ex.num_sim) + 1
 
@@ -77,13 +77,7 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
         loss.backward()
         optimizer.step()
         losses += loss.item()
-
-        wandb.log({
-                'Train loss in Batch': loss,
-                # 'Cos of Ref and Sim-1': torch.mean(wight_for_each_sent_loss[1::num_sim]),
-                # 'Cos of Ref and Sim-2': torch.mean(wight_for_each_sent_loss[2::num_sim]),
-                # 'Cos of Ref and Sim-K': torch.mean(wight_for_each_sent_loss[num_sim-1::num_sim]),
-                })
+        # wandb.log({'Train loss in Batch': loss})
 
     return losses / len(train_dataloader)
 

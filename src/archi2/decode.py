@@ -5,12 +5,12 @@ def greedy_decode(collation_mask, vocab, model, src, memory, max_len, start_symb
     # function to generate output sequence using greedy algorithm
 
     ys = torch.ones(1, 1).fill_(start_symbol).type(torch.long).to(device)
+    memory = memory.to(device)
 
     q_mt = 1.0
     q_mts = []
 
     for i in range(max_len-1):
-        memory = memory.to(device)
         tgt_mask = (collation_mask.generate_square_subsequent_mask(ys.size(0), device).type(torch.bool)).to(device)
         out = model.decode(ys, memory, tgt_mask)
         out = out.transpose(0, 1)

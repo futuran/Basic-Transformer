@@ -44,8 +44,8 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
 
     for src, tgt, sim_ranks, src_length_mask, sim_scores in tqdm(train_dataloader):
         # 目視確認用
-        # print(" ".join(vocab_transform['src'].lookup_tokens(src.transpose(1,0)[0].numpy())).replace("<pad>", ""))
-        # print(" ".join(vocab_transform['tgt'].lookup_tokens(tgt.transpose(1,0)[0].numpy())).replace("<pad>", ""))
+        # print(" ".join(collation_mask.vocab.vocab_transform['src'].lookup_tokens(src.transpose(1,0)[0].numpy())).replace("<pad>", ""))
+        # print(" ".join(collation_mask.vocab.vocab_transform['tgt'].lookup_tokens(tgt.transpose(1,0)[0].numpy())).replace("<pad>", ""))
 
         num_sim = int(cfg.ex.num_sim) + 1
 
