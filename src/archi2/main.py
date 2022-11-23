@@ -47,7 +47,7 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
         # print(" ".join(collation_mask.vocab.vocab_transform['src'].lookup_tokens(src.transpose(1,0)[0].numpy())).replace("<pad>", ""))
         # print(" ".join(collation_mask.vocab.vocab_transform['tgt'].lookup_tokens(tgt.transpose(1,0)[0].numpy())).replace("<pad>", ""))
 
-        num_sim = int(cfg.ex.num_sim) + 1
+        num_ref_sim = int(cfg.ex.num_sim) + 1
 
         # テンソルをcpuからgpuに移す
         src = src.to(device)
@@ -63,16 +63,20 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
 
         # ENCODING
         memory = model.encode_with_mask(src, src_mask, src_padding_mask, src_length_mask)
-        # length方向にconcat
-        # memory = torch.reshape(memory.transpose(0,1), (int(memory.shape[1]/num_sim) , -1, memory.shape[2])).transpose(0,1).contiguous() 
-        # dim方向を足す
-        W = torch.repeat_interleave(torch.eye(int(memory.shape[1]/num_sim)), num_sim, dim=0).to(device)
+        
+        # 1. length方向にconcatする場合
+        # memory = torch.reshape(memory.transpose(0,1), (int(memory.shape[1]/num_ref_sim) , -1, memory.shape[2])).transpose(0,1).contiguous() 
+        # 2. dim方向を足す場合
+        # W = torch.repeat_interleave(torch.eye(int(memory.shape[1]/num_ref_sim)), num_ref_sim, dim=0).to(device)
+        # memory = torch.matmul(memory.transpose(1,2),W).transpose(1,2)
+        # 3. dim方向で feedward + skip-connection を行う場合
+        W = model.W_core.repeat(cfg.ex.model.batch_size, cfg.ex.model.batch_size).to(device)
         memory = torch.matmul(memory.transpose(1,2),W).transpose(1,2)
 
         # DECODING
         # src_padding_mask_for_decode = torch.reshape(src_padding_mask, (int(src_padding_mask.shape[0]/num_sim) , -1))
-        src_padding_mask_for_decode = src_padding_mask[0::num_sim,:]
-        logits = model.decode_for_training(tgt_input, memory, tgt_mask, tgt_padding_mask, src_padding_mask_for_decode)
+        # src_padding_mask_for_decode = src_padding_mask[0::num_ref_sim,:]
+        logits = model.decode_for_training(tgt_input, memory, tgt_mask, tgt_padding_mask, src_padding_mask)
 
         # optimizer.zero_grad() # for Original Adam
         optimizer.optimizer.zero_grad()  # for w/ Noam
@@ -94,9 +98,9 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
 
         # wandb.log({
         #         'Train loss in Batch': loss,
-        #         # 'Cos of Ref and Sim-1': torch.mean(wight_for_each_sent_loss[1::num_sim]),
-        #         # 'Cos of Ref and Sim-2': torch.mean(wight_for_each_sent_loss[2::num_sim]),
-        #         # 'Cos of Ref and Sim-K': torch.mean(wight_for_each_sent_loss[num_sim-1::num_sim]),
+        #         # 'Cos of Ref and Sim-1': torch.mean(wight_for_each_sent_loss[1::num_ref_sim]),
+        #         # 'Cos of Ref and Sim-2': torch.mean(wight_for_each_sent_loss[2::num_ref_sim]),
+        #         # 'Cos of Ref and Sim-K': torch.mean(wight_for_each_sent_loss[num_ref_sim-1::num_ref_sim]),
         #         })
 
     return losses / len(train_dataloader)
@@ -263,7 +267,8 @@ def main(cfg: DictConfig):
                                    nhead=cfg.ex.model.nhead,
                                    src_vocab_size=len(vocab.vocab_transform['src']),
                                    tgt_vocab_size=len(vocab.vocab_transform['tgt']),
-                                   dim_feedforward=cfg.ex.model.ffn_hid_dim)
+                                   dim_feedforward=cfg.ex.model.ffn_hid_dim,
+                                   num_sim = cfg.ex.num_sim)
         model = model.to(device)
         logger.info('\n' + str(model))
 

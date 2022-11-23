@@ -116,7 +116,8 @@ class MyTransformer(nn.Module):
                  src_vocab_size: int,
                  tgt_vocab_size: int,
                  dim_feedforward: int = 512,
-                 dropout: float = 0.1):
+                 dropout: float = 0.1,
+                 num_sim: int = 0):
         super(MyTransformer, self).__init__()
         self.transformer = Transformer(d_model=emb_size,
                                        nhead=nhead,
@@ -136,6 +137,8 @@ class MyTransformer(nn.Module):
 
         self.softmax = nn.Softmax(dim=1)
         self.log_softmax = nn.LogSoftmax(dim=2)
+
+        self.W_core = torch.eye(num_sim+1)
 
     def forward(self,
                 src: Tensor,
