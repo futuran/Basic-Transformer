@@ -62,7 +62,7 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
         # logits, encoder_outs = model(src, tgt_input, sim_ranks, src_length_mask, src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
 
         # ENCODING
-        memory = model.encode_with_mask(src, src_mask, src_padding_mask, src_length_mask)
+        memory = model.encode_with_mask_for_training(src, src_mask, src_padding_mask, src_length_mask)
 
         # DECODING
         logits = model.decode_for_training(tgt_input, memory, tgt_mask, tgt_padding_mask, src_padding_mask)
@@ -99,8 +99,7 @@ def evaluate(collation_mask: CollationAndMask, dev_data, model, loss_fn, loss_fn
 
         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = collation_mask.create_mask(src, tgt_input, device)
 
-        memory = model.encode_with_mask(src, src_mask, src_padding_mask, src_length_mask)
-
+        memory = model.encode_with_mask_for_training(src, src_mask, src_padding_mask, src_length_mask)
         logits = model.decode_for_training(tgt_input, memory, tgt_mask, tgt_padding_mask, src_padding_mask)
 
         tgt_out = tgt[1:, :]
@@ -116,18 +115,17 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
     out_qmt_list = []
     
     model.eval()
-    collation_mask.is_prediction = True # prediction時にrefを入れないように。
     test_dataloader = DataLoader(test_data, batch_size=1, shuffle=False, collate_fn=collation_mask.collate_fn)
     
-    for i, (src, tgt, sim_ranks, src_length_mask, sim_scores) in enumerate(test_dataloader):
+    for i, (src, tgt, sim_ranks, src_length_mask, sim_scores) in enumerate(tqdm(test_dataloader)):
         # 第一類似文の事例のみ切り出す。
         src = src[:,1::cfg.ex.num_sim+1]
         src_length_mask = src_length_mask[:,1::cfg.ex.num_sim+1]
         sim_scores = sim_scores[1::cfg.ex.num_sim+1]
         
         # 目視確認用
-        print(f'{i=}')
-        print(" ".join(vocab.vocab_transform['src'].lookup_tokens(src.transpose(1,0)[0].numpy())).replace("<pad>", ""))
+        # print(f'{i=}')
+        # print(" ".join(vocab.vocab_transform['src'].lookup_tokens(src.transpose(1,0)[0].numpy())).replace("<pad>", ""))
         # print(" ".join(vocab.vocab_transform['tgt'].lookup_tokens(tgt.transpose(1,0)[0].numpy())).replace("<pad>", ""))
 
         # テンソルをcpuからgpuに移す
@@ -141,7 +139,6 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = collation_mask.create_mask(src, tgt_input, device)
 
         # ENCODING
-        # memory = model.encode_with_mask(src, src_mask, src_padding_mask, src_length_mask)
         memory = model.encode_with_mask_for_prediction(src, src_mask, src_length_mask)
 
         # GREEDY DECODING
@@ -156,7 +153,7 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
         tgt_tokens = tgt_tokens.flatten()
 
         out = " ".join(vocab.vocab_transform['tgt'].lookup_tokens(list(tgt_tokens.cpu().numpy()))).replace("<bos>", "").replace("<eos>", "")
-        print(out)
+        # print(out)
         out_txt_list.append(out + '\n')
         out_qmt_list.append(q_mts)
 

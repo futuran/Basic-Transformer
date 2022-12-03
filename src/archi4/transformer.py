@@ -166,17 +166,17 @@ class MyTransformer(nn.Module):
                                             memory_key_padding_mask=memory_key_padding_mask)
         return self.generator(outs), memory
 
-    # def encode(self, src: Tensor, src_mask: Tensor):
-    #     src_emb = self.positional_encoding(self.src_tok_emb(src))
-    #     memory = self.transformer.encoder(src_emb, src_mask)
-    #     return memory
+    def encode(self, src: Tensor, src_mask: Tensor):
+        src_emb = self.positional_encoding(self.src_tok_emb(src))
+        memory = self.transformer.encoder(src_emb, src_mask)
+        return memory
 
-    # def decode(self, tgt: Tensor, memory: Tensor, tgt_mask: Tensor):
-    #     tgt_emb = self.positional_encoding(self.tgt_tok_emb(tgt))
-    #     outs = self.transformer.decoder(tgt_emb, memory, tgt_mask)
-    #     return outs
+    def decode(self, tgt: Tensor, memory: Tensor, tgt_mask: Tensor):
+        tgt_emb = self.positional_encoding(self.tgt_tok_emb(tgt))
+        outs = self.transformer.decoder(tgt_emb, memory, tgt_mask)
+        return outs
 
-    def encode_with_mask_for_training(self, src: Tensor, src_mask: Tensor, src_padding_mask: Tensor, src_length_mask: Tensor):
+    def encode_with_mask(self, src: Tensor, src_mask: Tensor, src_padding_mask: Tensor, src_length_mask: Tensor):
         src_emb = self.positional_encoding(self.src_tok_emb(src))
         memory = self.transformer.encoder(src_emb, mask=src_mask, src_key_padding_mask=src_padding_mask)
         src_length_mask = src_length_mask.unsqueeze(dim=2).expand(-1,-1, src_emb.shape[2])
@@ -190,24 +190,9 @@ class MyTransformer(nn.Module):
         memory = torch.mul(memory, src_length_mask)
         return memory
 
-    def encode_without_mask_for_training(self, src: Tensor, src_mask: Tensor, src_padding_mask: Tensor):
-        src_emb = self.positional_encoding(self.src_tok_emb(src))
-        memory = self.transformer.encoder(src_emb, mask=src_mask, src_key_padding_mask=src_padding_mask)
-        return memory
-
-    def encode_without_mask_for_prediction(self, src: Tensor, src_mask: Tensor):
-        src_emb = self.positional_encoding(self.src_tok_emb(src))
-        memory = self.transformer.encoder(src_emb, mask=src_mask)
-        return memory
-
     def decode_for_training(self, tgt: Tensor, memory: Tensor, tgt_mask: Tensor, tgt_padding_mask: Tensor, memory_key_padding_mask: Tensor):
         tgt_emb = self.positional_encoding(self.tgt_tok_emb(tgt))
         outs = self.transformer.decoder(tgt_emb, memory, tgt_mask=tgt_mask, memory_mask=None,
                                         tgt_key_padding_mask=tgt_padding_mask,
                                         memory_key_padding_mask=memory_key_padding_mask)
         return self.generator(outs)
-    
-    def decode_for_prediction(self, tgt: Tensor, memory: Tensor, tgt_mask: Tensor):
-        tgt_emb = self.positional_encoding(self.tgt_tok_emb(tgt))
-        outs = self.transformer.decoder(tgt_emb, memory, tgt_mask)
-        return outs

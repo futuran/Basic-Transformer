@@ -5,7 +5,7 @@ defaults:
 
 project_name: aspec.enja.nfr.labse.enh100k_to_jah2m.top8.archi1
 checkpoint: aspec.enja.nfr.labse.enh100k_to_jah2m.top8.archi1/trained_model
-load_checkpoint: aspec.enja.nfr.labse.enh100k_to_jah2m.top8.archi1/trained_model/model_10.pt
+load_checkpoint: aspec.enja.nfr.labse.enh100k_to_jah2m.top8.archi1/trained_model/model_30.pt
 log_dir: aspec.enja.nfr.labse.enh100k_to_jah2m.top8.archi1/
 out_txt: aspec.enja.nfr.labse.enh100k_to_jah2m.top8.archi1/out.txt
 out_lqmt: aspec.enja.nfr.labse.enh100k_to_jah2m.top8.archi1/out.lqmt

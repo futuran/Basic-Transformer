@@ -11,13 +11,14 @@ from tqdm import tqdm
 import wandb
 wandb.login()
 
-from src.archi0.collation_mask import *
-from src.archi0.optimizer import *
-from src.archi0.vocabs import *
-from src.archi0.load_data import *
-from src.archi0.transformer import *
-from src.archi0.decode import *
-from src.archi0.loss import *
+from src.archi4.collation_mask import *
+from src.archi4.optimizer import *
+from src.archi4.vocabs import *
+from src.archi4.load_data import *
+from src.archi4.transformer import *
+from src.archi4.moe import *
+from src.archi4.decode import *
+from src.archi4.loss import *
 
 # log関連
 from src.util.logger import *
@@ -36,27 +37,36 @@ from torchtext.vocab import build_vocab_from_iterator
 # from torch.nn.utils.rnn import pad_sequence
 
 
-def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, loss_fn, cfg: DictConfig, device):
+def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, loss_fn, loss_fn_for_sim, loss_sentweight_fn, cfg: DictConfig, device):
 
-    model.train()
+    model.eval()
     losses = 0
-    train_dataloader = DataLoader(train_data, batch_size=cfg.ex.model.batch_size, shuffle=True, collate_fn=collation_mask.collate_fn_orig)
+    train_dataloader = DataLoader(train_data, batch_size=cfg.ex.model.batch_size, shuffle=True, collate_fn=collation_mask.collate_fn)
 
-    for src, tgt in tqdm(train_dataloader):
+    for src, tgt, sim_ranks, src_length_mask, sim_scores in tqdm(train_dataloader):
         # 目視確認用
-        # print(" ".join(collation_mask.vocab.vocab_transform['src'].lookup_tokens(src.transpose(1,0)[0].numpy())).replace("<pad>", ""))
-        # print(" ".join(collation_mask.vocab.vocab_transform['tgt'].lookup_tokens(tgt.transpose(1,0)[0].numpy())).replace("<pad>", ""))
+        # print(" ".join(vocab_transform['src'].lookup_tokens(src.transpose(1,0)[0].numpy())).replace("<pad>", ""))
+        # print(" ".join(vocab_transform['tgt'].lookup_tokens(tgt.transpose(1,0)[0].numpy())).replace("<pad>", ""))
 
+        num_sim = int(cfg.ex.num_sim) + 1
 
         # テンソルをcpuからgpuに移す
         src = src.to(device)
         tgt = tgt.to(device)
+        src_length_mask = src_length_mask.to(device)
+        sim_scores = sim_scores.to(device)
 
         tgt_input = tgt[:-1, :]
 
         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = collation_mask.create_mask(src, tgt_input, device)
 
-        logits = model(src, tgt_input, src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+        # logits, encoder_outs = model(src, tgt_input, sim_ranks, src_length_mask, src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+
+        # ENCODING
+        memory = model.encode_with_mask(src, src_mask, src_padding_mask, src_length_mask)
+
+        # DECODING
+        logits = model.decode_for_training(tgt_input, memory, tgt_mask, tgt_padding_mask, src_padding_mask)
 
         # optimizer.zero_grad() # for Original Adam
         optimizer.optimizer.zero_grad()  # for w/ Noam
@@ -68,25 +78,37 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
         loss.backward()
         optimizer.step()
         losses += loss.item()
-        # wandb.log({'Train loss in Batch': loss})
+
+        wandb.log({
+                'Train loss in Batch': loss,
+                # 'Cos of Ref and Sim-1': torch.mean(wight_for_each_sent_loss[1::num_sim]),
+                # 'Cos of Ref and Sim-2': torch.mean(wight_for_each_sent_loss[2::num_sim]),
+                # 'Cos of Ref and Sim-K': torch.mean(wight_for_each_sent_loss[num_sim-1::num_sim]),
+                })
 
     return losses / len(train_dataloader)
 
 
-def evaluate(collation_mask: CollationAndMask, dev_data, model, loss_fn, cfg: DictConfig, device):
+def evaluate(collation_mask: CollationAndMask, dev_data, model, loss_fn, loss_fn_for_sim, loss_sentweight_fn, cfg: DictConfig, device):
     
     model.eval()
     losses = 0
-    dev_dataloader = DataLoader(dev_data, batch_size=cfg.ex.model.batch_size, shuffle=True, collate_fn=collation_mask.collate_fn_orig)
+    dev_dataloader = DataLoader(dev_data, batch_size=cfg.ex.model.batch_size, shuffle=True, collate_fn=collation_mask.collate_fn)
 
-    for src, tgt in dev_dataloader:
+    for src, tgt, sim_ranks, src_length_mask, sim_scores in dev_dataloader:
         src = src.to(device)
         tgt = tgt.to(device)
+        src_length_mask = src_length_mask.to(device)
+
+        num_sim = int(cfg.ex.num_sim) + 1
 
         tgt_input = tgt[:-1, :]
 
         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = collation_mask.create_mask(src, tgt_input, device)
-        logits = model(src, tgt_input, src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+
+        memory = model.encode_with_mask(src, src_mask, src_padding_mask, src_length_mask)
+
+        logits = model.decode_for_training(tgt_input, memory, tgt_mask, tgt_padding_mask, src_padding_mask)
 
         tgt_out = tgt[1:, :]
         loss = loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
@@ -101,37 +123,44 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
     out_qmt_list = []
     
     model.eval()
-    test_dataloader = DataLoader(test_data, batch_size=1, shuffle=False, collate_fn=collation_mask.collate_fn_orig)
+    # collation_mask.is_prediction = True # prediction時にrefを入れないように。
+    test_dataloader = DataLoader(test_data, batch_size=1, shuffle=False, collate_fn=collation_mask.collate_fn)
     
-    for i, (src, tgt) in enumerate(tqdm(test_dataloader)):
+    for i, (src, tgt, sim_ranks, src_length_mask, sim_scores) in enumerate(tqdm(test_dataloader)):
         # 第一類似文の事例のみ切り出す。
-        src = src[:,1::cfg.ex.num_sim]
+        # src = src[:,1::cfg.ex.num_sim+1]
+        # src_length_mask = src_length_mask[:,1::cfg.ex.num_sim+1]
+        # sim_scores = sim_scores[1::cfg.ex.num_sim+1]
         
         # 目視確認用
         # print(f'{i=}')
         # print(" ".join(vocab.vocab_transform['src'].lookup_tokens(src.transpose(1,0)[0].numpy())).replace("<pad>", ""))
         # print(" ".join(vocab.vocab_transform['tgt'].lookup_tokens(tgt.transpose(1,0)[0].numpy())).replace("<pad>", ""))
-        
+
         # テンソルをcpuからgpuに移す
         src = src.to(device)
         tgt = tgt.to(device)
+        src_length_mask = src_length_mask.to(device)
+        sim_scores = sim_scores.to(device)
 
         tgt_input = tgt[:-1, :]
 
         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = collation_mask.create_mask(src, tgt_input, device)
 
         # ENCODING
-        memory = model.encode(src, src_mask)
+        # memory = model.encode_with_mask(src, src_mask, src_padding_mask, src_length_mask)
+        memory = model.encode_with_mask_for_prediction(src, src_mask, src_length_mask)
 
         # GREEDY DECODING
-        tgt_tokens, q_mts = greedy_decode(
+        # tgt_tokens, q_mts = greedy_decode_with_simbeam(
+        tgt_tokens, q_mts = greedy_decode_moe(
             collation_mask, 
             vocab, 
             model,
             src,
             memory,
             max_len=128, 
-            start_symbol=vocab.BOS_IDX, device=device)
+            start_symbol=vocab.BOS_IDX, device=device, num_src_sim=cfg.ex.num_sim+1)
         tgt_tokens = tgt_tokens.flatten()
 
         out = " ".join(vocab.vocab_transform['tgt'].lookup_tokens(list(tgt_tokens.cpu().numpy()))).replace("<bos>", "").replace("<eos>", "")
@@ -200,7 +229,7 @@ def main(cfg: DictConfig):
 
     # Training
     if cfg.do_train:
-        model = OriginalTransformer(num_encoder_layers=cfg.ex.model.num_encoder_layers,
+        model = MyTransformer(num_encoder_layers=cfg.ex.model.num_encoder_layers,
                                    num_decoder_layers=cfg.ex.model.num_decoder_layers,
                                    emb_size=cfg.ex.model.emb_size,
                                    nhead=cfg.ex.model.nhead,
@@ -215,6 +244,8 @@ def main(cfg: DictConfig):
                 nn.init.xavier_uniform_(p)
 
         loss_fn = torch.nn.CrossEntropyLoss(ignore_index=vocab.PAD_IDX)
+        loss_fn_for_sim = nn.KLDivLoss(reduction="batchmean", log_target=True)
+        loss_sentweight_fn = SentWeightedCrossEntropyLoss(ignore_index=vocab.PAD_IDX)
 
         # optimizer = torch.optim.AdamW(transformer.parameters(), lr=0.001, betas=(0.9, 0.98), eps=1e-9)
         optimizer = NoamOpt(512, cfg.ex.model.warmup, torch.optim.Adam(model.parameters(), lr=0, betas=(0.9, 0.998), eps=1e-9))
@@ -225,9 +256,9 @@ def main(cfg: DictConfig):
         # Now we have all the ingredients to train our model. Let's do it!
         for epoch in range(1, cfg.ex.model.num_epochs + 1):
             start_time = timer()
-            train_loss = train_epoch(collation_mask, train_data, model, optimizer, loss_fn, cfg, device)
+            train_loss = train_epoch(collation_mask, train_data, model, optimizer, loss_fn, loss_fn_for_sim, loss_sentweight_fn, cfg, device)
             end_time = timer()
-            val_loss = evaluate(collation_mask, dev_data, model, loss_fn, cfg, device)
+            val_loss = evaluate(collation_mask, dev_data, model, loss_fn, loss_fn_for_sim, loss_sentweight_fn, cfg, device)
             torch.save(model.state_dict(), Path( cwd / '{}/model_{}.pt'.format(cfg.ex.checkpoint, epoch)))
             logger.info(f"Epoch: {epoch}, Train loss: {train_loss:.3f}, Train ppl: {math.exp(train_loss):.3f}, Val loss: {val_loss:.3f}, Val ppl: {math.exp(val_loss):.3f}, "f"Epoch time = {(end_time - start_time):.3f}s")
             wandb.log({
@@ -238,7 +269,7 @@ def main(cfg: DictConfig):
 
     # Predict
     if cfg.do_predict:
-        model = OriginalTransformer(num_encoder_layers=cfg.ex.model.num_encoder_layers,
+        model = MyTransformer(num_encoder_layers=cfg.ex.model.num_encoder_layers,
                                    num_decoder_layers=cfg.ex.model.num_decoder_layers,
                                    emb_size=cfg.ex.model.emb_size,
                                    nhead=cfg.ex.model.nhead,
