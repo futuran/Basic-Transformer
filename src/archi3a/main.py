@@ -11,13 +11,13 @@ from tqdm import tqdm
 import wandb
 wandb.login()
 
-from src.archi1a.collation_mask import *
-from src.archi1a.optimizer import *
-from src.archi1a.vocabs import *
-from src.archi1a.load_data import *
-from src.archi1a.transformer import *
-from src.archi1a.decode import *
-from src.archi1a.loss import *
+from src.archi3a.collation_mask import *
+from src.archi3a.optimizer import *
+from src.archi3a.vocabs import *
+from src.archi3a.load_data import *
+from src.archi3a.transformer import *
+from src.archi3a.decode import *
+from src.archi3a.loss import *
 
 # log関連
 from src.util.logger import *
@@ -114,7 +114,7 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
     
     for i, (src, tgt) in enumerate(tqdm(test_dataloader)):
         # 第一類似文の事例のみ切り出す。（refは入っていないので0から。）
-        src = src[:, 0::cfg.ex.num_sim]
+        # src = src[:, 0::cfg.ex.num_sim]
         
         # 目視確認用
         # print(f'{i=}')
@@ -133,14 +133,15 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
         memory = model.encode(src, src_mask)
 
         # GREEDY DECODING
-        tgt_tokens, q_mts = greedy_decode(
+        tgt_tokens, q_mts = greedy_decode_moe(
             collation_mask, 
             vocab, 
             model,
             src,
             memory,
             max_len=128, 
-            start_symbol=vocab.BOS_IDX, device=device)
+            start_symbol=vocab.BOS_IDX, device=device,
+            num_src_sim=cfg.ex.num_sim)
         tgt_tokens = tgt_tokens.flatten()
 
         out = " ".join(vocab.vocab_transform['tgt'].lookup_tokens(list(tgt_tokens.cpu().numpy()))).replace("<bos>", "").replace("<eos>", "")

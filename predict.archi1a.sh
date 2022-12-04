@@ -44,7 +44,7 @@ elif [ $1 = 3 ]; then
 elif [ $1 = 4 ]; then
     # archi3で推論
     epoch=$2
-    ARCHI=archi3
+    ARCHI=archi3a
     poetry run python src/$ARCHI/main.py \
         ex=$DIR \
         ex.dataset.test.src=$TEST_SRC \
