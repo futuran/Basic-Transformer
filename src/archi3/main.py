@@ -47,8 +47,6 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
         # print(" ".join(collation_mask.vocab.vocab_transform['src'].lookup_tokens(src.transpose(1,0)[0].numpy())).replace("<pad>", ""))
         # print(" ".join(collation_mask.vocab.vocab_transform['tgt'].lookup_tokens(tgt.transpose(1,0)[0].numpy())).replace("<pad>", ""))
 
-        num_sim = int(cfg.ex.num_sim) + 1
-
         # テンソルをcpuからgpuに移す
         src = src.to(device)
         tgt = tgt.to(device)
@@ -92,8 +90,6 @@ def evaluate(collation_mask: CollationAndMask, dev_data, model, loss_fn, loss_fn
         src = src.to(device)
         tgt = tgt.to(device)
         src_length_mask = src_length_mask.to(device)
-
-        num_sim = int(cfg.ex.num_sim) + 1
 
         tgt_input = tgt[:-1, :]
 

@@ -37,9 +37,11 @@ from torchtext.vocab import build_vocab_from_iterator
 # from torch.nn.utils.rnn import pad_sequence
 
 
-def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, loss_fn, loss_fn_for_sim, loss_sentweight_fn, cfg: DictConfig, device):
+def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, loss_fn, loss_fn_for_sim, loss_sentweight_fn, cfg: DictConfig, device,
+                model_moe: nn.Module):
 
     model.eval()
+    model_moe.train()
     losses = 0
     train_dataloader = DataLoader(train_data, batch_size=cfg.ex.model.batch_size, shuffle=True, collate_fn=collation_mask.collate_fn)
 
@@ -47,8 +49,6 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
         # 目視確認用
         # print(" ".join(vocab_transform['src'].lookup_tokens(src.transpose(1,0)[0].numpy())).replace("<pad>", ""))
         # print(" ".join(vocab_transform['tgt'].lookup_tokens(tgt.transpose(1,0)[0].numpy())).replace("<pad>", ""))
-
-        num_sim = int(cfg.ex.num_sim) + 1
 
         # テンソルをcpuからgpuに移す
         src = src.to(device)
@@ -66,7 +66,10 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
         memory = model.encode_with_mask(src, src_mask, src_padding_mask, src_length_mask)
 
         # DECODING
-        logits = model.decode_for_training(tgt_input, memory, tgt_mask, tgt_padding_mask, src_padding_mask)
+        logits = model.decode_for_training(tgt_input, memory, tgt_mask, tgt_padding_mask, src_padding_mask) # 47*96*辞書サイズ
+
+        # Mixture of Experts
+        weights = model_moe(memory)
 
         # optimizer.zero_grad() # for Original Adam
         optimizer.optimizer.zero_grad()  # for w/ Noam
@@ -99,8 +102,6 @@ def evaluate(collation_mask: CollationAndMask, dev_data, model, loss_fn, loss_fn
         src = src.to(device)
         tgt = tgt.to(device)
         src_length_mask = src_length_mask.to(device)
-
-        num_sim = int(cfg.ex.num_sim) + 1
 
         tgt_input = tgt[:-1, :]
 
@@ -242,6 +243,19 @@ def main(cfg: DictConfig):
         for p in model.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
+        
+        model_moe = Moe(num_src_sim=cfg.ex.num_sim+1,
+                       emb_size=cfg.ex.model.emb_size,
+                       nhead=cfg.ex.model.nhead,
+                       dim_feedforward=cfg.ex.model.ffn_hid_dim,
+                       dropout=0.1)
+
+        model_moe = model_moe.to(device)
+        logger.info('\n' + str(model_moe))
+
+        for p in model_moe.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
 
         loss_fn = torch.nn.CrossEntropyLoss(ignore_index=vocab.PAD_IDX)
         loss_fn_for_sim = nn.KLDivLoss(reduction="batchmean", log_target=True)
@@ -250,13 +264,14 @@ def main(cfg: DictConfig):
         # optimizer = torch.optim.AdamW(transformer.parameters(), lr=0.001, betas=(0.9, 0.98), eps=1e-9)
         optimizer = NoamOpt(512, cfg.ex.model.warmup, torch.optim.Adam(model.parameters(), lr=0, betas=(0.9, 0.998), eps=1e-9))
 
-        wandb.watch(model, loss_fn, log="all", log_freq=10)
+        wandb.watch(model_moe, loss_fn, log="all", log_freq=10)
 
         ######################################################################
         # Now we have all the ingredients to train our model. Let's do it!
         for epoch in range(1, cfg.ex.model.num_epochs + 1):
             start_time = timer()
-            train_loss = train_epoch(collation_mask, train_data, model, optimizer, loss_fn, loss_fn_for_sim, loss_sentweight_fn, cfg, device)
+            train_loss = train_epoch(collation_mask, train_data, model, optimizer, loss_fn, loss_fn_for_sim, loss_sentweight_fn, cfg, device,
+                                    model_moe)
             end_time = timer()
             val_loss = evaluate(collation_mask, dev_data, model, loss_fn, loss_fn_for_sim, loss_sentweight_fn, cfg, device)
             torch.save(model.state_dict(), Path( cwd / '{}/model_{}.pt'.format(cfg.ex.checkpoint, epoch)))
