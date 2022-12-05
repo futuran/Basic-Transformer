@@ -1,0 +1,12 @@
+train: 
+  src: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/merge_enh1m_to_jah2m.top2/aspec_test.en.tkn.bpe
+  tgt: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/merge_enh1m_to_jah2m.top2/aspec_test.ja.tkn.bpe
+  match: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/match_enh1m_to_jah2m/test.match
+dev: 
+  src: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/merge_enh1m_to_jah2m.top2/aspec_dev.en.tkn.bpe
+  tgt: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/merge_enh1m_to_jah2m.top2/aspec_dev.ja.tkn.bpe
+  match: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/match_enh1m_to_jah2m/dev.match
+test: 
+  src: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/merge_enh1m_to_jah2m.top2/aspec_test.en.tkn.bpe
+  tgt: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/merge_enh1m_to_jah2m.top2/aspec_test.ja.tkn.bpe
+  match: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/match_enh1m_to_jah2m/test.match

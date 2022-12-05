@@ -1,12 +1,14 @@
 defaults:
-- dataset: aspec.enja.nfr.labse.enh100k_to_jah2m.top2
+- dataset: aspec.enja.nfr.labse.enh100k_to_jah2m.top4
 - model: base
 - vocab: aspec.enja.base
 
-project_name: aspec.enja.nfr.labse.enh100k_to_jah2m.top2.archi3
-checkpoint: aspec.enja.nfr.labse.enh100k_to_jah2m.top2.archi3/trained_model
+project_name: aspec.enja.nfr.labse.enh100k_to_jah2m.top4.archi4
+checkpoint: aspec.enja.nfr.labse.enh100k_to_jah2m.top4.archi4/trained_model
 load_checkpoint: aspec.enja.nfr.labse.enh100k_to_jah2m.top2.archi1/trained_model/model_8.pt
-log_dir: aspec.enja.nfr.labse.enh100k_to_jah2m.top2.archi3/
-out_txt: aspec.enja.nfr.labse.enh100k_to_jah2m.top2.archi3/out.txt
-out_lqmt: aspec.enja.nfr.labse.enh100k_to_jah2m.top2.archi3/out.lqmt
-num_sim: 2
+# load_checkpoint: aspec.enja.nfr.labse.enh100k_to_jah2m.top4.archi4/trained_model/model_4.pt
+load_checkpoint_moe: aspec.enja.nfr.labse.enh100k_to_jah2m.top4.archi4/trained_model/model_moe_1.pt
+log_dir: aspec.enja.nfr.labse.enh100k_to_jah2m.top4.archi4/
+out_txt: aspec.enja.nfr.labse.enh100k_to_jah2m.top4.archi4/out.txt
+out_lqmt: aspec.enja.nfr.labse.enh100k_to_jah2m.top4.archi4/out.lqmt
+num_sim: 4

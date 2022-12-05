@@ -73,7 +73,7 @@ class CollationAndMask:
                 tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
                 sim_ranks.append(i)
                 src_length_mask_batch.append(torch.ones(src_length))
-                sim_scores.append(float(match_list[i].split()[1]))
+                sim_scores.append(float(match_list[i-1].split()[1]))
 
         src_batch = pad_sequence(src_batch, padding_value=self.vocab.PAD_IDX)
         tgt_batch = pad_sequence(tgt_batch, padding_value=self.vocab.PAD_IDX)

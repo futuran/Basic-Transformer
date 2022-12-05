@@ -48,49 +48,25 @@ class CollationAndMask:
         # function to collate data samples into batch tesors
         src_batch = []                  # srcのテンソル
         tgt_batch = []                  # tgtのテンソル
-        src_length_mask_batch = []      # src文のみの文長（単語数・sep記号は含まず）
-        sim_ranks = []                  # src+sim:1,2,...
-        sim_scores = []                 # LaBSEなどのpre-rankingモデルでの類似度
 
         for x in batch:
             src_and_sims_list = x['src'].split('|') # 0:orig_src 1~:sims
-            src_length = len(src_and_sims_list[0].split())
-
-            match_list = x['match'].split(' ||| ')
 
             # src+ref
-            # tmp = ' <sep> '.join([src_and_sims_list[0], x['tgt']])
-            # src_batch.append(self.vocab.text_transform['src'](tmp.split()))
-            # tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
-            # sim_ranks.append(0)
-            # src_length_mask_batch.append(torch.ones(src_length))
-            # sim_scores.append(1)
+            tmp = ' <sep> '.join([src_and_sims_list[0], x['tgt']])
+            src_batch.append(self.vocab.text_transform['src'](tmp.split()))
+            tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
 
             # src+sim
             for i in range(1,len(src_and_sims_list)):
                 tmp = ' <sep> '.join([src_and_sims_list[0], src_and_sims_list[i]])
                 src_batch.append(self.vocab.text_transform['src'](tmp.split()))
                 tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
-                sim_ranks.append(i)
-                src_length_mask_batch.append(torch.ones(src_length))
-                sim_scores.append(float(match_list[i-1].split()[1]))
-            else:
-                while i < 4:
-                    tmp = ' <sep> '.join([src_and_sims_list[0], src_and_sims_list[1]])
-                    src_batch.append(self.vocab.text_transform['src'](tmp.split()))
-                    tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
-                    sim_ranks.append(1)
-                    src_length_mask_batch.append(torch.ones(src_length))
-                    sim_scores.append(float(match_list[i-1].split()[1]))
-                    i+=1
 
         src_batch = pad_sequence(src_batch, padding_value=self.vocab.PAD_IDX)
         tgt_batch = pad_sequence(tgt_batch, padding_value=self.vocab.PAD_IDX)
 
-        src_length_mask_batch.append(torch.zeros(src_batch.shape[0]))
-        src_length_mask_batch = pad_sequence(src_length_mask_batch, padding_value=0)[:,:-1]
-
-        return src_batch, tgt_batch, sim_ranks, src_length_mask_batch, torch.tensor(sim_scores)
+        return src_batch, tgt_batch
 
 
     ######################################################################
