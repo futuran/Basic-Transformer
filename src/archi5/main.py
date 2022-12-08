@@ -47,8 +47,6 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
         # print(" ".join(collation_mask.vocab.vocab_transform['src'].lookup_tokens(src.transpose(1,0)[0].numpy())).replace("<pad>", ""))
         # print(" ".join(collation_mask.vocab.vocab_transform['tgt'].lookup_tokens(tgt.transpose(1,0)[0].numpy())).replace("<pad>", ""))
 
-        num_sim = int(cfg.ex.num_sim) + 1
-
         # テンソルをcpuからgpuに移す
         src = src.to(device)
         tgt = tgt.to(device)
@@ -62,7 +60,13 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
         # logits, encoder_outs = model(src, tgt_input, sim_ranks, src_length_mask, src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
 
         # ENCODING
-        memory = model.encode_with_mask_for_training(src, src_mask, src_padding_mask, src_length_mask)
+        memory = model.encode_with_mask_for_training(src, src_mask, src_padding_mask, src_length_mask)  # src単語長*bs*512
+
+        # mix
+        mixed_memory = torch.reshape(memory, (memory.shape[0], -1, 512 * (cfg.ex.num_sim)))
+        mixed_memory = model.mix_encoder(mixed_memory)
+        mixed_memory = torch.reshape(mixed_memory, (mixed_memory.shape[0], -1, 512))
+        memory = memory + mixed_memory
 
         # DECODING
         logits = model.decode_for_training(tgt_input, memory, tgt_mask, tgt_padding_mask, src_padding_mask)
@@ -93,13 +97,18 @@ def evaluate(collation_mask: CollationAndMask, dev_data, model, loss_fn, loss_fn
         tgt = tgt.to(device)
         src_length_mask = src_length_mask.to(device)
 
-        num_sim = int(cfg.ex.num_sim) + 1
-
         tgt_input = tgt[:-1, :]
 
         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = collation_mask.create_mask(src, tgt_input, device)
 
         memory = model.encode_with_mask_for_training(src, src_mask, src_padding_mask, src_length_mask)
+
+        # mix
+        mixed_memory = torch.reshape(memory, (memory.shape[0], -1, 512 * (cfg.ex.num_sim)))
+        mixed_memory = model.mix_encoder(mixed_memory)
+        mixed_memory = torch.reshape(mixed_memory, (mixed_memory.shape[0], -1, 512))
+        memory = memory + mixed_memory
+
         logits = model.decode_for_training(tgt_input, memory, tgt_mask, tgt_padding_mask, src_padding_mask)
 
         tgt_out = tgt[1:, :]
@@ -119,9 +128,9 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
     
     for i, (src, tgt, sim_ranks, src_length_mask, sim_scores) in enumerate(tqdm(test_dataloader)):
         # 第一類似文の事例のみ切り出す。
-        src = src[:,1::cfg.ex.num_sim+1]
-        src_length_mask = src_length_mask[:,1::cfg.ex.num_sim+1]
-        sim_scores = sim_scores[1::cfg.ex.num_sim+1]
+        # src = src[:,1::cfg.ex.num_sim+1]
+        # src_length_mask = src_length_mask[:,1::cfg.ex.num_sim+1]
+        # sim_scores = sim_scores[1::cfg.ex.num_sim+1]
         
         # 目視確認用
         # print(f'{i=}')
@@ -141,6 +150,13 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
         # ENCODING
         memory = model.encode_with_mask_for_prediction(src, src_mask, src_length_mask)
 
+        # mix
+        mixed_memory = torch.reshape(memory, (memory.shape[0], -1, 512 * (cfg.ex.num_sim)))
+        mixed_memory = model.mix_encoder(mixed_memory)
+        mixed_memory = torch.reshape(mixed_memory, (mixed_memory.shape[0], -1, 512))
+        memory = memory + mixed_memory
+        memory= memory[:,0::cfg.ex.num_sim]
+
         # GREEDY DECODING
         tgt_tokens, q_mts = greedy_decode(
             collation_mask, 
@@ -149,7 +165,8 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
             src,
             memory,
             max_len=128, 
-            start_symbol=vocab.BOS_IDX, device=device)
+            start_symbol=vocab.BOS_IDX, device=device,)
+            # num_src_sim=cfg.ex.num_sim)
         tgt_tokens = tgt_tokens.flatten()
 
         out = " ".join(vocab.vocab_transform['tgt'].lookup_tokens(list(tgt_tokens.cpu().numpy()))).replace("<bos>", "").replace("<eos>", "")
@@ -218,13 +235,14 @@ def main(cfg: DictConfig):
 
     # Training
     if cfg.do_train:
-        model = MyTransformer(num_encoder_layers=cfg.ex.model.num_encoder_layers,
-                                   num_decoder_layers=cfg.ex.model.num_decoder_layers,
-                                   emb_size=cfg.ex.model.emb_size,
-                                   nhead=cfg.ex.model.nhead,
-                                   src_vocab_size=len(vocab.vocab_transform['src']),
-                                   tgt_vocab_size=len(vocab.vocab_transform['tgt']),
-                                   dim_feedforward=cfg.ex.model.ffn_hid_dim)
+        model = MyTransformer(num_jirei=cfg.ex.num_sim,
+                                num_encoder_layers=cfg.ex.model.num_encoder_layers,
+                                num_decoder_layers=cfg.ex.model.num_decoder_layers,
+                                emb_size=cfg.ex.model.emb_size,
+                                nhead=cfg.ex.model.nhead,
+                                src_vocab_size=len(vocab.vocab_transform['src']),
+                                tgt_vocab_size=len(vocab.vocab_transform['tgt']),
+                                dim_feedforward=cfg.ex.model.ffn_hid_dim)
         model = model.to(device)
         logger.info('\n' + str(model))
 
@@ -258,13 +276,14 @@ def main(cfg: DictConfig):
 
     # Predict
     if cfg.do_predict:
-        model = MyTransformer(num_encoder_layers=cfg.ex.model.num_encoder_layers,
-                                   num_decoder_layers=cfg.ex.model.num_decoder_layers,
-                                   emb_size=cfg.ex.model.emb_size,
-                                   nhead=cfg.ex.model.nhead,
-                                   src_vocab_size=len(vocab.vocab_transform['src']),
-                                   tgt_vocab_size=len(vocab.vocab_transform['tgt']),
-                                   dim_feedforward=cfg.ex.model.ffn_hid_dim)
+        model = MyTransformer(num_jirei=cfg.ex.num_sim,
+                                num_encoder_layers=cfg.ex.model.num_encoder_layers,
+                                num_decoder_layers=cfg.ex.model.num_decoder_layers,
+                                emb_size=cfg.ex.model.emb_size,
+                                nhead=cfg.ex.model.nhead,
+                                src_vocab_size=len(vocab.vocab_transform['src']),
+                                tgt_vocab_size=len(vocab.vocab_transform['tgt']),
+                                dim_feedforward=cfg.ex.model.ffn_hid_dim)
         if cfg.ex.load_checkpoint != '':
             model.load_state_dict(torch.load(cwd / Path(cfg.ex.load_checkpoint)))
         model.to(device)

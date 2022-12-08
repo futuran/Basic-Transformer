@@ -1,18 +1,18 @@
 import torch
 import numpy as np
 
-def greedy_decode(collation_mask, vocab, model, src, memory, max_len, start_symbol, device):
+def greedy_decode(collation_mask, vocab, model, src, memory_list, max_len, start_symbol, device):
     # function to generate output sequence using greedy algorithm
 
     ys = torch.ones(1, 1).fill_(start_symbol).type(torch.long).to(device)
-    memory = memory.to(device)
+    # memory_list = memory_list.to(device)
 
     q_mt = 1.0
     q_mts = []
 
     for i in range(max_len-1):
         tgt_mask = (collation_mask.generate_square_subsequent_mask(ys.size(0), device).type(torch.bool)).to(device)
-        out = model.decode_for_prediction(ys, memory, tgt_mask)
+        out = model.decode_pred(ys, memory_list, tgt_mask)
         out = out.transpose(0, 1)
         prob = model.generator(out[:, -1])
         _, next_word = torch.max(model.softmax(prob), dim=1)
@@ -39,7 +39,6 @@ def greedy_decode_moe(collation_mask, vocab, model, src, memory, max_len, start_
     q_mts = []
 
     for i in range(max_len-1):
-
         memory = memory.to(device)
 
         q_next_word_list = []

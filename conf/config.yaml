@@ -1,10 +1,10 @@
 defaults:
     - _self_
     # - ex: aspec.enja.baseline.100k
-    - ex: aspec.enja.nfr.labse.enh100k_to_jah2m.top2.archi1b
+    - ex: aspec.enja.nfr.labse.enh100k_to_jah2m.top2.archi6
     # - ex: aspec.enja.nfr.labse.enh1m_to_jah2m.top1.archi0
     # - ex: debug2
 
-do_train: True
+do_train: False
 do_eval: True
 do_predict: True

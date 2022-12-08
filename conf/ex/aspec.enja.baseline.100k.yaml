@@ -1,6 +1,6 @@
 defaults:
 - dataset: aspec.enja.baseline.100k
-- model: base
+- model: small
 - vocab: aspec.enja.base
 
 project_name: aspec.enja.baseline.100k

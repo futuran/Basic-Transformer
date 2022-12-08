@@ -104,8 +104,6 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
     test_dataloader = DataLoader(test_data, batch_size=1, shuffle=False, collate_fn=collation_mask.collate_fn_orig)
     
     for i, (src, tgt) in enumerate(tqdm(test_dataloader)):
-        # 第一類似文の事例のみ切り出す。
-        src = src[:,1::cfg.ex.num_sim]
         
         # 目視確認用
         # print(f'{i=}')

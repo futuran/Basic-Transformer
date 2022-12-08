@@ -2,7 +2,7 @@
 name = "basic-transformer"
 version = "0.1.0"
 description = ""
-authors = ["futuran <takuya.kudryavka@gmail.com>"]
+authors = ["futuran"]
 readme = "README.md"
 packages = [{include = "src"}]
 

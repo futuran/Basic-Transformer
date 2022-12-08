@@ -109,6 +109,7 @@ class OriginalTransformer(nn.Module):
     
 class MyTransformer(nn.Module):
     def __init__(self,
+                 num_jirei: int,
                  num_encoder_layers: int,
                  num_decoder_layers: int,
                  emb_size: int,
@@ -137,6 +138,10 @@ class MyTransformer(nn.Module):
         self.softmax = nn.Softmax(dim=1)
         self.log_softmax = nn.LogSoftmax(dim=2)
 
+        encoder_norm = nn.LayerNorm(512 * num_jirei, eps=1e-6)
+        encoder_layer = nn.TransformerEncoderLayer(d_model=512 * num_jirei, nhead=8)
+        self.mix_encoder = nn.TransformerEncoder(encoder_layer, num_layers=2, norm=encoder_norm)
+
     def forward(self,
                 src: Tensor,
                 tgt: Tensor,
@@ -148,7 +153,7 @@ class MyTransformer(nn.Module):
                 tgt_padding_mask: Tensor,
                 memory_key_padding_mask: Tensor):
         src_emb = self.positional_encoding(self.src_tok_emb(src))
-        tgt_emb = self.positional_encoding
+        tgt_emb = self.positional_encoding(self.tgt_tok_emb(tgt))
 
         is_batched = src_emb.dim() == 3
         if not self.transformer.batch_first and src_emb.size(1) != tgt_emb.size(1) and is_batched:

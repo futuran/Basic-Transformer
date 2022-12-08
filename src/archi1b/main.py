@@ -11,13 +11,13 @@ from tqdm import tqdm
 import wandb
 wandb.login()
 
-from src.archi1a.collation_mask import *
-from src.archi1a.optimizer import *
-from src.archi1a.vocabs import *
-from src.archi1a.load_data import *
-from src.archi1a.transformer import *
-from src.archi1a.decode import *
-from src.archi1a.loss import *
+from src.archi1b.collation_mask import *
+from src.archi1b.optimizer import *
+from src.archi1b.vocabs import *
+from src.archi1b.load_data import *
+from src.archi1b.transformer import *
+from src.archi1b.decode import *
+from src.archi1b.loss import *
 
 # log関連
 from src.util.logger import *

@@ -1,5 +1,5 @@
-DIR=aspec.enja.nfr.labse.enh100k_to_jah2m.top2.archi1
-ARCHI=archi1
+DIR=aspec.enja.nfr.labse.enh100k_to_jah2m.top2.archi1b
+ARCHI=archi1b
 
 VALID_SRC=/mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/merge_enh1m_to_jah2m.top2/aspec_dev.en.tkn.bpe
 TEST_SRC=/mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/merge_enh1m_to_jah2m.top2/aspec_test.en.tkn.bpe
@@ -44,7 +44,7 @@ elif [ $1 = 3 ]; then
 elif [ $1 = 4 ]; then
     # archi3で推論
     epoch=$2
-    ARCHI=archi3
+    ARCHI=archi3a
     poetry run python src/$ARCHI/main.py \
         ex=$DIR \
         ex.dataset.test.src=$TEST_SRC \
