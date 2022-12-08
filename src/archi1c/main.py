@@ -11,13 +11,13 @@ from tqdm import tqdm
 import wandb
 wandb.login()
 
-from src.archi1.collation_mask import *
-from src.archi1.optimizer import *
-from src.archi1.vocabs import *
-from src.archi1.load_data import *
-from src.archi1.transformer import *
-from src.archi1.decode import *
-from src.archi1.loss import *
+from src.archi1c.collation_mask import *
+from src.archi1c.optimizer import *
+from src.archi1c.vocabs import *
+from src.archi1c.load_data import *
+from src.archi1c.transformer import *
+from src.archi1c.decode import *
+from src.archi1c.loss import *
 
 # log関連
 from src.util.logger import *
@@ -115,9 +115,9 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
     
     for i, (src, tgt, sim_ranks, src_length_mask, sim_scores) in enumerate(tqdm(test_dataloader)):
         # 第一類似文の事例のみ切り出す。
-        src = src[:,1::cfg.ex.num_sim+1]
-        src_length_mask = src_length_mask[:,1::cfg.ex.num_sim+1]
-        sim_scores = sim_scores[1::cfg.ex.num_sim+1]
+        src = src[:,0::cfg.ex.num_sim]
+        src_length_mask = src_length_mask[:,0::cfg.ex.num_sim]
+        sim_scores = sim_scores[0::cfg.ex.num_sim]
         
         # 目視確認用
         # print(f'{i=}')
