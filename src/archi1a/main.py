@@ -163,7 +163,7 @@ def main(cfg: DictConfig):
 
     # Building Vocabulary
     vocab = Vocab()
-    collation_mask = CollationAndMask(vocab)
+    collation_mask = CollationAndMask(vocab, cfg.ex.num_sim)
     if os.path.isfile(cfg.ex.vocab.save) == True:
         logger.info('load exsiting vocab file...')
         logger.info(cfg.ex.vocab.save)

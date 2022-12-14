@@ -1,8 +1,11 @@
-DIR=aspec.enja.nfr.labse.enh100k_to_jah2m.top4.archi1a
+# DIR=aspec.enja.nfr.labse.enh100k_to_jah2m.top4.archi1a
+DIR=aspec.enja.nfr.ed.enh100k_to_enh100k.top4.archi1a
 ARCHI=archi1a
 
-VALID_SRC=/mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/merge_enh1m_to_jah2m.top4/aspec_dev.en.tkn.bpe
-TEST_SRC=/mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/merge_enh1m_to_jah2m.top4/aspec_test.en.tkn.bpe
+VALID_SRC=/mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.ed/merge_enh100k_to_enh100k.top4/aspec_dev.en.tkn.bpe
+# VALID_SRC=/mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/merge_enh1m_to_jah2m.top4/aspec_dev.en.tkn.bpe
+TEST_SRC=/mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.ed/merge_enh100k_to_enh100k.top4/aspec_test.en.tkn.bpe
+# TEST_SRC=/mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/merge_enh1m_to_jah2m.top4/aspec_test.en.tkn.bpe
 
 mkdir $DIR/out_dev/
 mkdir $DIR/out_test/

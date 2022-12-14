@@ -1,7 +1,7 @@
 emb_size: 512
 nhead: 8
 ffn_hid_dim: 2048
-batch_size: 48
+batch_size: 96
 num_encoder_layers: 6
 num_decoder_layers: 6
 warmup: 8000

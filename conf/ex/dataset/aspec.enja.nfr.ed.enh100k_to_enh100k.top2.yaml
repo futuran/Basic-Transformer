@@ -1,0 +1,12 @@
+train: 
+  src: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.ed/merge_enh100k_to_enh100k.top2/aspec_train_h100k.en.tkn.bpe
+  tgt: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.ed/merge_enh100k_to_enh100k.top2/aspec_train_h100k.ja.tkn.bpe
+  match: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.ed/match_enh100k_to_enh100k/train_h100k.match
+dev: 
+  src: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.ed/merge_enh100k_to_enh100k.top2/aspec_dev.en.tkn.bpe
+  tgt: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.ed/merge_enh100k_to_enh100k.top2/aspec_dev.ja.tkn.bpe
+  match: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.ed/match_enh100k_to_enh100k/dev.match
+test: 
+  src: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.ed/merge_enh100k_to_enh100k.top2/aspec_test.en.tkn.bpe
+  tgt: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.ed/merge_enh100k_to_enh100k.top2/aspec_test.ja.tkn.bpe
+  match: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.ed/match_enh100k_to_enh100k/test.match

@@ -4,8 +4,9 @@ from typing import List
 
 
 class CollationAndMask:
-    def __init__(self, vocab):
+    def __init__(self, vocab, num_sim):
         self.vocab = vocab
+        self.num_sim = num_sim
 
     ######################################################################
     # Collation
@@ -52,10 +53,17 @@ class CollationAndMask:
         for x in batch:
             src_and_sims_list = x['src'].split('|') # 0:orig_src 1~:sims
 
+            i=1
             for i in range(1,len(src_and_sims_list)):
                 tmp = ' <sep> '.join([src_and_sims_list[0], src_and_sims_list[i]])
                 src_batch.append(self.vocab.text_transform['src'](tmp.split()))
                 tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
+            else:
+                while i < self.num_sim:
+                    tmp = ' <sep> '.join([src_and_sims_list[0], ''])
+                    src_batch.append(self.vocab.text_transform['src'](tmp.split()))
+                    tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
+                    i+=1
 
         src_batch = pad_sequence(src_batch, padding_value=self.vocab.PAD_IDX)
         tgt_batch = pad_sequence(tgt_batch, padding_value=self.vocab.PAD_IDX)
