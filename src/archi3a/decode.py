@@ -30,7 +30,7 @@ def greedy_decode(collation_mask, vocab, model, src, memory, max_len, start_symb
     return ys, q_mts
 
 
-def greedy_decode_moe(collation_mask, vocab, model, src, memory, max_len, start_symbol, device, num_src_sim):
+def greedy_decode_moe(collation_mask, vocab, model, src, memory, max_len, start_symbol, device, num_sim):
     # function to generate output sequence using greedy algorithm
     ys = torch.ones(1, 1).fill_(start_symbol).type(torch.long).to(device)
 
@@ -41,19 +41,17 @@ def greedy_decode_moe(collation_mask, vocab, model, src, memory, max_len, start_
 
         memory = memory.to(device)
 
-        q_next_word_list = []
-
         prob = None
-        for j in range(num_src_sim):
-            current_memory = memory[:,j::num_src_sim, :]
+        for j in range(num_sim):
+            current_memory = memory[:,j::num_sim, :]
 
             tgt_mask = (collation_mask.generate_square_subsequent_mask(ys.size(0), device).type(torch.bool)).to(device)
             out = model.decode(ys, current_memory, tgt_mask)
             out = out.transpose(0, 1)
             if prob == None:
-                prob = model.generator(out[:, -1])
+                prob = model.softmax(model.generator(out[:, -1]))
             else:
-                prob += model.generator(out[:, -1])
+                prob += model.softmax(model.generator(out[:, -1]))
         q, next_word = torch.max(model.softmax(prob), dim=1)
 
         next_word = next_word.item()

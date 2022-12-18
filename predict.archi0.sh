@@ -1,11 +1,25 @@
-# DIR=aspec.enja.baseline.100k
 ARCHI=archi0
-DIR=aspec.enja.nfr.ed.enh100k_to_enh100k.top4.$ARCHI
 
+# BASELINE
+# DIR=aspec.enja.baseline.100k
 # VALID_SRC=/mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec/aspec_dev.en.tkn.bpe
-VALID_SRC=/mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.ed/merge_enh100k_to_enh100k.top4/aspec_dev.en.tkn.bpe
 # TEST_SRC=/mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec/aspec_test.en.tkn.bpe
-TEST_SRC=/mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.ed/merge_enh100k_to_enh100k.top4/aspec_test.en.tkn.bpe
+
+# ED
+# DIR=aspec.enja.nfr.ed.enh100k_to_enh100k.top4.$ARCHI
+# VALID_SRC=/mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.ed/merge_enh100k_to_jenh100k.top4/aspec_dev.en.tkn.bpe
+# TEST_SRC=/mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.ed/merge_enh100k_to_enh100k.top4/aspec_test.en.tkn.bpe
+
+# LABSE
+# DIR=aspec.enja.nfr.labse.enh100k_to_jah2m.top1.$ARCHI
+# VALID_SRC=/mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/merge_enh1m_to_jah2m.top1/aspec_dev.en.tkn.bpe
+# TEST_SRC=/mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.labse/merge_enh1m_to_jah2m.top1/aspec_test.en.tkn.bpe
+
+# MSBERT
+DIR=aspec.enja.nfr.msbert.enh100k_to_jah2m.top8.$ARCHI
+VALID_SRC=/mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.msbert/merge_enh1m_to_jah2m.top8/aspec_dev.en.tkn.bpe
+TEST_SRC=/mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.msbert/merge_enh1m_to_jah2m.top8/aspec_test.en.tkn.bpe
+
 
 mkdir $DIR/out_dev/
 mkdir $DIR/out_test/

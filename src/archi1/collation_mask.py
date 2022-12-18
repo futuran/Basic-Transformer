@@ -4,8 +4,9 @@ from typing import List
 
 
 class CollationAndMask:
-    def __init__(self, vocab):
+    def __init__(self, vocab, num_sim):
         self.vocab = vocab
+        self.num_sim = num_sim
 
     ######################################################################
     # Collation
@@ -67,13 +68,23 @@ class CollationAndMask:
             sim_scores.append(1)
 
             # src+sim
+            i=1
             for i in range(1,len(src_and_sims_list)):
                 tmp = ' <sep> '.join([src_and_sims_list[0], src_and_sims_list[i]])
                 src_batch.append(self.vocab.text_transform['src'](tmp.split()))
                 tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
                 sim_ranks.append(i)
                 src_length_mask_batch.append(torch.ones(src_length))
-                sim_scores.append(float(match_list[i-1].split()[1]))
+                sim_scores.append(float(match_list[i-1].split()[1]))            
+            else:
+                while i < self.num_sim:
+                    tmp = ' <sep> '.join([src_and_sims_list[0], ''])
+                    src_batch.append(self.vocab.text_transform['src'](tmp.split()))
+                    tgt_batch.append(self.vocab.text_transform['tgt'](x['tgt'].split()))
+                    sim_ranks.append(0)
+                    src_length_mask_batch.append(torch.ones(src_length))
+                    sim_scores.append(float(0.0))            
+                    i+=1
 
         src_batch = pad_sequence(src_batch, padding_value=self.vocab.PAD_IDX)
         tgt_batch = pad_sequence(tgt_batch, padding_value=self.vocab.PAD_IDX)

@@ -134,7 +134,7 @@ wandb/
 # data
 outputs/
 labse.nfr.srctgt/
-old/
+old*/
 
 nohup.out
 

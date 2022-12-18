@@ -47,8 +47,6 @@ def train_epoch(collation_mask: CollationAndMask, train_data, model, optimizer, 
         # print(" ".join(collation_mask.vocab.vocab_transform['src'].lookup_tokens(src.transpose(1,0)[0].numpy())).replace("<pad>", ""))
         # print(" ".join(collation_mask.vocab.vocab_transform['tgt'].lookup_tokens(tgt.transpose(1,0)[0].numpy())).replace("<pad>", ""))
 
-        num_sim = int(cfg.ex.num_sim)
-
         # テンソルをcpuからgpuに移す
         src = src.to(device)
         tgt = tgt.to(device)
@@ -85,8 +83,6 @@ def evaluate(collation_mask: CollationAndMask, dev_data, model, loss_fn, loss_fn
     for src, tgt in dev_dataloader:
         src = src.to(device)
         tgt = tgt.to(device)
-
-        num_sim = int(cfg.ex.num_sim)
 
         tgt_input = tgt[:-1, :]
 
@@ -141,7 +137,7 @@ def translate(collation_mask: CollationAndMask, test_data, model: torch.nn.Modul
             memory,
             max_len=128, 
             start_symbol=vocab.BOS_IDX, device=device,
-            num_src_sim=cfg.ex.num_sim)
+            num_sim=cfg.ex.num_sim)
         tgt_tokens = tgt_tokens.flatten()
 
         out = " ".join(vocab.vocab_transform['tgt'].lookup_tokens(list(tgt_tokens.cpu().numpy()))).replace("<bos>", "").replace("<eos>", "")
@@ -168,7 +164,7 @@ def main(cfg: DictConfig):
 
     # Building Vocabulary
     vocab = Vocab()
-    collation_mask = CollationAndMask(vocab)
+    collation_mask = CollationAndMask(vocab, cfg.ex.num_sim)
     if os.path.isfile(cfg.ex.vocab.save) == True:
         logger.info('load exsiting vocab file...')
         logger.info(cfg.ex.vocab.save)
