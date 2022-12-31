@@ -1,0 +1,12 @@
+defaults:
+- dataset: aspec.enja.nfr.msbert.enh100k_to_jah2m.top3
+- model: base
+- vocab: aspec.enja.base
+
+project_name: aspec.enja.nfr.msbert.enh100k_to_jah2m.top3.archi1a
+checkpoint: aspec.enja.nfr.msbert.enh100k_to_jah2m.top3.archi1a/trained_model
+load_checkpoint: aspec.enja.nfr.msbert.enh100k_to_jah2m.top3.archi1a/trained_model/model_20.pt
+log_dir: aspec.enja.nfr.msbert.enh100k_to_jah2m.top3.archi1a/
+out_txt: aspec.enja.nfr.msbert.enh100k_to_jah2m.top3.archi1a/out.txt
+out_lqmt: aspec.enja.nfr.msbert.enh100k_to_jah2m.top3.archi1a/out.lqmt
+num_sim: 3

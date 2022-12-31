@@ -1,0 +1,12 @@
+defaults:
+- dataset: aspec.enja.nfr.mixtop1s
+- model: base
+- vocab: aspec.enja.base
+
+project_name: aspec.enja.nfr.mixtop1s
+checkpoint: aspec.enja.nfr.mixtop1s/trained_model
+load_checkpoint: aspec.enja.nfr.mixtop1s/trained_model/model_30.pt
+log_dir: aspec.enja.nfr.mixtop1s/
+out_txt: aspec.enja.nfr.mixtop1s/out.txt
+out_lqmt: aspec.enja.nfr.mixtop1s/out.lqmt
+num_sim: 3

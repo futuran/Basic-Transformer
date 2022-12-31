@@ -17,9 +17,9 @@ def parse_args():
     parser.add_argument('--score', type=int)
 
     # パラメータ
-    parser.add_argument('-pp', '--ppl', type=float, default=1)
-    parser.add_argument('-pr', type=float, default=1)
-    parser.add_argument('-pa', type=float, default=1)
+    parser.add_argument('-pp', '--ppl', type=float)
+    parser.add_argument('-pr', type=float)
+    parser.add_argument('-pa', type=float)
     parser.add_argument('--epoch', type=int)
 
     # COMETスコアディレクトリへのパス

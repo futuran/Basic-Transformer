@@ -1,11 +1,12 @@
 defaults:
     - _self_
     # - ex: aspec.enja.baseline.100k
-    # - ex: aspec.enja.nfr.ed.enh100k_to_enh100k.top2.archi1
-    - ex: aspec.enja.nfr.labse.enh100k_to_jah2m.top2.archi1a
-    # - ex: aspec.enja.nfr.labse.enh1m_to_jah2m.top1.archi0
-    # - ex: aspec.enja.nfr.msbert.enh100k_to_jah2m.top8.archi1a
+    # - ex: aspec.enja.nfr.ed.enh100k_to_enh100k.top3.archi1a
+    # - ex: aspec.enja.nfr.msbert.enh100k_to_jah2m.top3.archi1a
+    # - ex: aspec.enja.nfr.msbert.enh100k_to_jah2m.top3.archi1a
+    # - ex: aspec.enja.nfr.mixtop1s.archi1a
     # - ex: debug2
+    - ex: aspec.enja.nfr.mix_by_comet_labse_only.top100.top2.archi1a
 
 do_train: True
 do_eval: True

@@ -1,0 +1,12 @@
+train: 
+  src: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.mix_by_comet/top16/best_txts.train_h100k.txt
+  tgt: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec/aspec_train_h100k.ja.tkn.bpe
+  match: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.msbert/match_enh1m_to_jah2m/train_h100k.match
+dev: 
+  src: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.mix_by_comet/top16/best_txts.dev.txt
+  tgt: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec/aspec_dev.ja.tkn.bpe
+  match: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.msbert/match_enh1m_to_jah2m/dev.match
+test: 
+  src: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.mix_by_comet/top16/best_txts.test.txt
+  tgt: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec/aspec_test.ja.tkn.bpe
+  match: /mnt/work/20221004_RetrieveEditRerank-NMT/data/aspec.msbert/match_enh1m_to_jah2m/test.match
